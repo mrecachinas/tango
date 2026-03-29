@@ -1,0 +1,10 @@
+profiles:
+  local:
+    mongo_url: localhost
+    mongo_port: 27017
+  staging:
+    mongo_url: staging.example.com
+    mongo_port: 27017
+    mongo_user: readonly
+    mongo_password: secret
+    mongo_db: myapp
