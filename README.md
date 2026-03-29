@@ -35,19 +35,7 @@ TANGO_MONGO_PASSWORD=secret tango -u admin
 
 ## Layout
 
-```
-┌─ 🥭 tango ─────────────────────────────────────────────────────┐
-│ ● localhost:27017  MongoDB v7.0  ↑ 2d5h  4 dbs · 12 colls     │
-│ ops/s ▁▂▃▅▇█▇▅ 142     conns ▁▁▂▃▂▁ 8/128    ping ▁▂▁▂ 0.5ms │
-│ mem   ▁▂▃▄▅▆▇█ 142MB   cache ████████░ 92%    net  ▁▂▃▄ 48KB/s│
-├─ Query ─────────────────────────────────────────────────────────┤
-│ ▶ db.users.find({role: "admin"})                                │
-├──────────┬──────────┬───────────────────────────────────────────┤
-│ Databases│Collections│ Documents                               │
-│ mydb (5) │ users (120)│ {"_id":"...","name":"Alice","age":30}  │
-│ admin (3)│ orders(200)│ {"_id":"...","name":"Bob","age":25}    │
-└──────────┴──────────┴───────────────────────────────────────────┘
-```
+![tango screenshot](docs/screenshot.png)
 
 ## Keybindings
 
