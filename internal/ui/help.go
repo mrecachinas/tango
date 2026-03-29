@@ -24,6 +24,7 @@ func setupHelp() {
   /               Focus query bar
   r               Refresh current view
   R               Full refresh (reload everything)
+  W               Toggle wide mode (full-width documents)
   S               Server stats
   ?               This help
   q               Quit

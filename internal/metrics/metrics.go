@@ -100,7 +100,7 @@ func CollectMetricsData() string {
 	)
 
 	const cellWidth = 36 // fixed visible width per metric cell
-	sep := "  "         // separator between cells
+	sep := "  "          // separator between cells
 
 	line2 := " " +
 		metricCell("ops/s", renderSparkline(s.OpsHistory.Data), fmt.Sprintf("%-8.0f", s.OpsHistory.Last()), cellWidth) + sep +

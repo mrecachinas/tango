@@ -221,10 +221,11 @@ func BuildUI() {
 	state.UpdateStatusHints()
 
 	// Layout: search bar on top, 3-panel row, status bar on bottom
-	panels := tview.NewFlex().
+	s.PanelsFlex = tview.NewFlex().
 		AddItem(s.DbList, 0, 1, true).
 		AddItem(s.CollList, 0, 1, false).
 		AddItem(s.DocPages, 0, 3, false)
+	panels := s.PanelsFlex
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(s.MetricsBar, 6, 0, false).
@@ -265,6 +266,11 @@ func BuildUI() {
 
 	// Wire up all keybindings (in keybindings.go)
 	setupKeybindings()
+
+	// Apply wide mode if persisted from previous session
+	if s.WideMode {
+		applyWideMode()
+	}
 
 	s.App.SetRoot(s.RootPages, true)
 }

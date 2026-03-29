@@ -195,6 +195,9 @@ func setupKeybindings() {
 		case 'q':
 			s.App.Stop()
 			return nil
+		case 'W':
+			ToggleWideMode()
+			return nil
 		case 'S':
 			documents.ShowStats()
 			return nil

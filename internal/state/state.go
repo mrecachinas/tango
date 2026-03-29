@@ -109,6 +109,10 @@ type AppState struct {
 	// RBAC
 	ReadOnly bool
 
+	// Wide mode (collapse db/coll panels for full-width docs)
+	WideMode   bool
+	PanelsFlex *tview.Flex
+
 	// Live mode
 	LiveMode     bool
 	LiveInterval time.Duration
@@ -242,7 +246,11 @@ func UpdateStatusHints() {
 	if S.LiveMode {
 		liveHint = "[red]◉ LIVE[white]  [yellow]L[white]:pause  "
 	}
-	common := liveHint + "[yellow]Tab[white]:panels  [yellow]/[white]:query  [yellow]r[white]:refresh  [yellow]Esc[white]:back  [yellow]q[white]:quit"
+	wideHint := "[yellow]W[white]:wide  "
+	if S.WideMode {
+		wideHint = "[yellow]W[white]:panels  "
+	}
+	common := liveHint + wideHint + "[yellow]Tab[white]:panels  [yellow]/[white]:query  [yellow]r[white]:refresh  [yellow]Esc[white]:back  [yellow]q[white]:quit"
 
 	focused := S.App.GetFocus()
 	var ctxHint string
@@ -302,6 +310,11 @@ func UpdateStatusHints() {
 }
 
 func CycleFocus(forward bool) {
+	if S.WideMode {
+		S.App.SetFocus(ActiveDocPanel())
+		RefreshPanelBorders()
+		return
+	}
 	focusable := []tview.Primitive{S.DbList, S.CollList, ActiveDocPanel()}
 	focused := S.App.GetFocus()
 	for i, p := range focusable {
@@ -377,6 +390,18 @@ func FormatDocListTitle() string {
 	}
 	if n := len(s.SelectedDocs); n > 0 {
 		title += fmt.Sprintf(" [blue]%d selected[white]", n)
+	}
+	if s.WideMode {
+		breadcrumb := ""
+		if s.CurrentDB != "" {
+			breadcrumb = s.CurrentDB
+		}
+		if s.CurrentColl != "" {
+			breadcrumb += " > " + s.CurrentColl
+		}
+		if breadcrumb != "" {
+			title = fmt.Sprintf(" [gray]%s[white] │%s", breadcrumb, title)
+		}
 	}
 	title += " "
 	return title

@@ -11,6 +11,7 @@ type PersistedState struct {
 	LastCollection string   `json:"last_collection,omitempty"`
 	PageSize       int      `json:"page_size,omitempty"`
 	QueryHistory   []string `json:"query_history,omitempty"`
+	WideMode       bool     `json:"wide_mode,omitempty"`
 }
 
 const maxQueryHistory = 50
@@ -34,6 +35,7 @@ func SaveState() {
 		LastCollection: S.CurrentColl,
 		PageSize:       PageSize,
 		QueryHistory:   S.QueryHistory,
+		WideMode:       S.WideMode,
 	}
 
 	data, err := json.MarshalIndent(ps, "", "  ")
@@ -65,6 +67,7 @@ func LoadState() {
 	S.LastDB = ps.LastDB
 	S.LastCollection = ps.LastCollection
 	S.QueryHistory = ps.QueryHistory
+	S.WideMode = ps.WideMode
 }
 
 func AddToQueryHistory(query string) {
