@@ -31,11 +31,16 @@ tango --profile staging
 
 # Password via env var (recommended)
 TANGO_MONGO_PASSWORD=secret tango -u admin
+
+# Custom timeout
+tango --timeout 30
 ```
 
 ## Layout
 
 ![tango screenshot](docs/screenshot.png)
+
+**Wide mode** (`W`): collapses the side panels for full-width documents with breadcrumb navigation. Esc walks back through docs → collections → databases.
 
 ## Keybindings
 
@@ -53,19 +58,20 @@ TANGO_MONGO_PASSWORD=secret tango -u admin
 | `e` | Edit in $EDITOR |
 | `i` | Insert new document |
 | `c` | Copy to clipboard |
-| `x` | Export JSON |
-| `C` | Export CSV |
+| `x` / `C` | Export JSON / CSV |
 | `s` | Sort documents |
-| `Space` | Toggle selection |
+| `Space` / `a` / `A` | Select / select all / deselect all |
 | `I` | View indexes |
+| `D` | Drop collection |
 | `S` | Server stats |
 | `L` | Toggle live mode |
+| `W` | Toggle wide mode |
 | `r` / `R` | Refresh / full refresh |
 | `q` | Quit |
 
 ## Query Bar
 
-Supports full MongoDB shell syntax:
+Supports full MongoDB shell syntax with autocomplete:
 
 ```
 db.users.find({age: {$gt: 25}})
@@ -79,18 +85,39 @@ Relaxed JSON — unquoted keys, `$` operators, single quotes all work.
 
 ## Command Palette
 
-Press `:` to enter command mode:
+Press `:` to enter command mode (with autocomplete):
 
 | Command | Action |
 |---------|--------|
-| `:indexes` | View collection indexes |
+| `:databases` / `:dbs` | Navigate to database list |
+| `:database <name>` / `:use <name>` | Switch to a database |
+| `:collections` / `:colls` | Navigate to collection list |
+| `:collection <name>` | Switch to a collection |
+| `:indexes` / `:idx` | View collection indexes |
 | `:stats` | Server stats (currentOp, slow queries, top collections) |
-| `:sort <field>` | Sort by field (prefix with `-` for descending) |
+| `:sort <field>` | Sort by field (`-field` for descending) |
 | `:limit <n>` | Change page size |
-| `:export json/csv` | Export current results |
-| `:use <db>` | Switch database |
-| `:watch <interval>` | Live mode with custom interval (e.g. `:watch 5s`) |
-| `:refresh` | Reload current view |
+| `:export json` / `:export csv` | Export current results |
+| `:watch <interval>` | Live mode (e.g. `:watch 5s`) |
+| `:refresh` / `:refresh!` | Reload current view / full reload |
+
+## Live Metrics
+
+The metrics bar shows real-time sparklines and gauges:
+
+- **ops/s**, **connections**, **ping latency** — sparklines with rolling history
+- **memory**, **network I/O**, **queue depth**, **open cursors** — sparklines
+- **cache utilization**, **WiredTiger tickets** — gauge bars
+- **replication lag** — shown when connected to a replica set (color-coded)
+
+## Features
+
+- **Snapshot pagination** — pages are stable; new data only appears on refresh
+- **Live mode** (`L`) — auto-refresh with configurable interval
+- **RBAC-aware** — auto-detects read-only connections, disables write operations
+- **State persistence** — restores last DB/collection, page size, query history on relaunch
+- **Multi-select** — batch delete and export
+- **In-document search** — `/` in detail view highlights matches
 
 ## Connection Profiles
 
