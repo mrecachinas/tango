@@ -112,12 +112,14 @@ func BuildUI() {
 	s.CollList.SetDoneFunc(func() {
 		if s.WideMode {
 			// In wide mode, Esc backs up to database list in the doc panel
-			s.DocPages.SwitchToPage("databases")
-			s.App.SetFocus(s.DbList)
 			s.CurrentDB = ""
 			s.CurrentColl = ""
+			s.CurrentDocs = nil
+			s.DocList.Clear()
+			s.DocDetail.Clear()
 			s.CollList.Clear()
-			state.ClearDocPanel()
+			s.DocPages.SwitchToPage("databases")
+			s.App.SetFocus(s.DbList)
 		} else {
 			s.CollList.Clear()
 			state.ClearDocPanel()
