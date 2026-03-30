@@ -356,14 +356,70 @@ func executeCommand(cmd string) {
 			state.ShowError("Usage: :export json | :export csv")
 		}
 
-	case "use":
+	case "use", "database", "db":
 		// Preserve original case for database name
 		rawParts := strings.Fields(strings.TrimSpace(cmd))
 		if len(rawParts) < 2 {
-			state.ShowError("Usage: :use <database>")
+			// No arg: show databases view
+			if s.WideMode {
+				s.DocPages.SwitchToPage("databases")
+				s.App.SetFocus(s.DbList)
+				state.RefreshPanelBorders()
+			} else {
+				s.App.SetFocus(s.DbList)
+				state.RefreshPanelBorders()
+			}
 			return
 		}
 		documents.SelectDatabase(rawParts[1])
+
+	case "databases", "dbs":
+		if s.WideMode {
+			s.DocPages.SwitchToPage("databases")
+			s.App.SetFocus(s.DbList)
+			state.RefreshPanelBorders()
+		} else {
+			s.App.SetFocus(s.DbList)
+			state.RefreshPanelBorders()
+		}
+
+	case "collection", "coll":
+		rawParts := strings.Fields(strings.TrimSpace(cmd))
+		if len(rawParts) < 2 {
+			// No arg: show collections view
+			if s.CurrentDB == "" {
+				state.ShowError("Select a database first")
+				return
+			}
+			if s.WideMode {
+				s.DocPages.SwitchToPage("collections")
+				s.App.SetFocus(s.CollList)
+				state.RefreshPanelBorders()
+			} else {
+				s.App.SetFocus(s.CollList)
+				state.RefreshPanelBorders()
+			}
+			return
+		}
+		if s.CurrentDB == "" {
+			state.ShowError("Select a database first")
+			return
+		}
+		documents.SelectCollection(rawParts[1])
+
+	case "collections", "colls":
+		if s.CurrentDB == "" {
+			state.ShowError("Select a database first")
+			return
+		}
+		if s.WideMode {
+			s.DocPages.SwitchToPage("collections")
+			s.App.SetFocus(s.CollList)
+			state.RefreshPanelBorders()
+		} else {
+			s.App.SetFocus(s.CollList)
+			state.RefreshPanelBorders()
+		}
 
 	case "profile":
 		documents.ShowStats()
@@ -413,6 +469,8 @@ func getCommandSuggestions(partial string) []string {
 		":indexes", ":idx", ":stats", ":sort ", ":limit ",
 		":export json", ":export csv", ":use ", ":profile",
 		":refresh", ":refresh!", ":watch ",
+		":databases", ":dbs", ":database ", ":db ",
+		":collections", ":colls", ":collection ",
 	}
 	var suggestions []string
 	for _, cmd := range commands {
@@ -421,14 +479,30 @@ func getCommandSuggestions(partial string) []string {
 		}
 	}
 
-	// For ":use ", also suggest database names
-	if strings.HasPrefix(partial, "use ") {
-		dbPartial := strings.TrimPrefix(partial, "use ")
-		for i := 0; i < s.DbList.GetItemCount(); i++ {
-			main, _ := s.DbList.GetItemText(i)
-			name := state.BareName(main)
-			if strings.HasPrefix(strings.ToLower(name), dbPartial) {
-				suggestions = append(suggestions, ":use "+name)
+	// For ":use " / ":database " / ":db ", suggest database names
+	for _, prefix := range []string{"use ", "database ", "db "} {
+		if strings.HasPrefix(partial, prefix) {
+			dbPartial := strings.TrimPrefix(partial, prefix)
+			for i := 0; i < s.DbList.GetItemCount(); i++ {
+				main, _ := s.DbList.GetItemText(i)
+				name := state.BareName(main)
+				if strings.HasPrefix(strings.ToLower(name), dbPartial) {
+					suggestions = append(suggestions, ":"+prefix+name)
+				}
+			}
+		}
+	}
+
+	// For ":collection " / ":coll ", suggest collection names
+	for _, prefix := range []string{"collection ", "coll "} {
+		if strings.HasPrefix(partial, prefix) {
+			collPartial := strings.TrimPrefix(partial, prefix)
+			for i := 0; i < s.CollList.GetItemCount(); i++ {
+				main, _ := s.CollList.GetItemText(i)
+				name := state.BareName(main)
+				if strings.HasPrefix(strings.ToLower(name), collPartial) {
+					suggestions = append(suggestions, ":"+prefix+name)
+				}
 			}
 		}
 	}
