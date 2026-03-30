@@ -198,19 +198,22 @@ func ClearDocPanel() {
 
 func ActiveDocPanel() tview.Primitive {
 	name, _ := S.DocPages.GetFrontPage()
-	if name == "detail" {
+	switch name {
+	case "detail":
 		return S.DocDetail
-	}
-	if name == "tree" {
+	case "tree":
 		return S.DocTree
-	}
-	if name == "indexes" {
+	case "indexes":
 		return S.IndexList
-	}
-	if name == "stats" {
+	case "stats":
 		return S.StatsView
+	case "databases":
+		return S.DbList
+	case "collections":
+		return S.CollList
+	default:
+		return S.DocList
 	}
-	return S.DocList
 }
 
 func RefreshPanelBorders() {

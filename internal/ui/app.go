@@ -110,10 +110,20 @@ func BuildUI() {
 		documents.SelectCollection(mainText)
 	})
 	s.CollList.SetDoneFunc(func() {
-		s.CollList.Clear()
-		state.ClearDocPanel()
-		s.CurrentColl = ""
-		s.App.SetFocus(s.DbList)
+		if s.WideMode {
+			// In wide mode, Esc backs up to database list in the doc panel
+			s.DocPages.SwitchToPage("databases")
+			s.App.SetFocus(s.DbList)
+			s.CurrentDB = ""
+			s.CurrentColl = ""
+			s.CollList.Clear()
+			state.ClearDocPanel()
+		} else {
+			s.CollList.Clear()
+			state.ClearDocPanel()
+			s.CurrentColl = ""
+			s.App.SetFocus(s.DbList)
+		}
 		state.RefreshPanelBorders()
 	})
 
@@ -127,7 +137,14 @@ func BuildUI() {
 		documents.ExpandDocument(i)
 	})
 	s.DocList.SetDoneFunc(func() {
-		s.App.SetFocus(s.CollList)
+		if s.WideMode {
+			// In wide mode, Esc backs up to collection list in the doc panel
+			s.DocPages.SwitchToPage("collections")
+			s.App.SetFocus(s.CollList)
+			s.CurrentColl = ""
+		} else {
+			s.App.SetFocus(s.CollList)
+		}
 		state.RefreshPanelBorders()
 	})
 
@@ -170,11 +187,13 @@ func BuildUI() {
 	s.DocTree.SetBackgroundColor(tcell.ColorBlack)
 	s.DocTree.SetGraphicsColor(tcell.ColorDimGray)
 
-	// Pages widget to swap between list, detail, and tree views
+	// Pages widget to swap between list, detail, tree, and wide-mode navigation views
 	s.DocPages = tview.NewPages().
 		AddPage("list", s.DocList, true, true).
 		AddPage("detail", s.DocDetailFlex, true, false).
-		AddPage("tree", s.DocTree, true, false)
+		AddPage("tree", s.DocTree, true, false).
+		AddPage("databases", s.DbList, true, false).
+		AddPage("collections", s.CollList, true, false)
 
 	// Index list (shown inside docPages)
 	s.IndexList = tview.NewList().ShowSecondaryText(true)

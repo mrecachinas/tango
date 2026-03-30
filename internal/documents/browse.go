@@ -106,6 +106,9 @@ func SelectDatabase(dbName string) {
 				s.CollList.AddItem(item, "", 0, nil)
 			}
 			s.CollList.SetTitle(fmt.Sprintf(" Collections [yellow](%s)[white] ", dbName))
+			if s.WideMode {
+				s.DocPages.SwitchToPage("collections")
+			}
 			s.App.SetFocus(s.CollList)
 			state.RefreshPanelBorders()
 		})
