@@ -1,12 +1,15 @@
 BINARY := tango
 GOFILES := $(shell find . -name '*.go' -not -path './vendor/*')
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+LDFLAGS := -ldflags "-s -w -X tango/internal/version.Version=$(VERSION) -X tango/internal/version.Commit=$(COMMIT)"
 
 .PHONY: all build fmt vet lint test clean run
 
 all: fmt vet lint build
 
 build:
-	go build -o $(BINARY) ./cmd/tango
+	go build $(LDFLAGS) -o $(BINARY) ./cmd/tango
 
 fmt:
 	gofmt -s -w $(GOFILES)

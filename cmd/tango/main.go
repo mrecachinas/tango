@@ -16,9 +16,13 @@ import (
 	"tango/internal/metrics"
 	"tango/internal/state"
 	"tango/internal/ui"
+	"tango/internal/version"
 )
 
 func main() {
+	var showVersion bool
+	flag.BoolVar(&showVersion, "version", false, "Print version and exit")
+
 	var cfg config.Config
 	flag.StringVar(&cfg.MongoURL, "mongo-host", "localhost", "")
 	flag.IntVar(&cfg.MongoPort, "mongo-port", 27017, "")
@@ -30,6 +34,11 @@ func main() {
 	var timeoutSecs int
 	flag.IntVar(&timeoutSecs, "timeout", 10, "Query timeout in seconds")
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("tango %s (%s)\n", version.Version, version.Commit)
+		os.Exit(0)
+	}
 
 	if cfg.MongoPassword == "" {
 		if envPass := os.Getenv("TANGO_MONGO_PASSWORD"); envPass != "" {

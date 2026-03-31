@@ -48,7 +48,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Build
-        run: go build -o tango ./cmd/tango
+        run: go build -ldflags "-X tango/internal/version.Version=${{ github.sha }}" -o tango ./cmd/tango
 
       - name: Test
         run: go test -v -race ./...
