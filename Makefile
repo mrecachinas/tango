@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS := -ldflags "-s -w -X tango/internal/version.Version=$(VERSION) -X tango/internal/version.Commit=$(COMMIT)"
 
-.PHONY: all build fmt vet lint test clean run
+.PHONY: all build fmt vet lint test clean run docker
 
 all: fmt vet lint build
 
@@ -29,6 +29,9 @@ clean:
 
 run: build
 	./$(BINARY)
+
+docker:
+	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t $(BINARY):$(VERSION) .
 
 ## ── example environment ──
 
