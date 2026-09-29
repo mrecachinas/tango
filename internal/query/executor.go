@@ -2,32 +2,45 @@ package query
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"tango/internal/documents"
+	"tango/internal/mjson"
 	"tango/internal/state"
 )
 
 const maxResultCap = 10000
+
+// setBrowseQuery installs a query on the paged collection view and loads it.
+func setBrowseQuery(filter, projection, sort bson.D, skip, limit int64) {
+	s := state.S
+	s.CurrentFilter = filter
+	s.CurrentProjection = projection
+	s.CurrentSort = sort
+	s.QuerySkip = skip
+	s.QueryLimit = limit
+	s.CurrentPage = 0
+	s.PageStarts = nil
+	s.SnapshotID = nil
+	s.CountDirty = true
+	documents.LoadDocuments()
+}
 
 func ExecuteQuery(queryStr string) {
 	s := state.S
 	queryStr = strings.TrimSpace(queryStr)
 
 	if queryStr == "" {
-		s.CurrentFilter = nil
-		s.SnapshotID = nil
-		s.CurrentPage = 0
-		s.CountDirty = true
 		if s.CurrentDB != "" && s.CurrentColl != "" {
-			documents.LoadDocuments()
+			setBrowseQuery(nil, nil, s.CurrentSort, 0, 0)
 		}
 		return
 	}
@@ -35,271 +48,433 @@ func ExecuteQuery(queryStr string) {
 	state.AddToQueryHistory(queryStr)
 	s.QueryHistoryIdx = -1
 
-	// Command mode
 	if strings.HasPrefix(queryStr, ":") {
-		executeCommand(queryStr[1:])
 		s.SearchBar.SetText("")
-		state.RefreshPanelBorders()
+		executeCommand(queryStr[1:])
 		return
 	}
 
-	// Mongo shell syntax: db.collection.method(...)
 	if strings.HasPrefix(queryStr, "db.") {
 		runShellQuery(queryStr)
 		return
 	}
 
-	// Bare JSON filter on current collection
 	if s.CurrentDB == "" || s.CurrentColl == "" {
 		state.ShowError("Select a database and collection first,\nor use db.collection.find({...})")
 		return
 	}
-
 	filter, err := parseFilter(queryStr)
 	if err != nil {
-		state.ShowError(fmt.Sprintf("Invalid filter: %s\n\nTry: db.collection.find({key: \"value\"})", err))
+		state.ShowError(fmt.Sprintf("Invalid filter: %s\n\nTry: {key: \"value\"} or db.collection.find({key: \"value\"})", err))
 		return
 	}
+	setBrowseQuery(filter, s.CurrentProjection, s.CurrentSort, s.QuerySkip, s.QueryLimit)
+}
 
-	s.CurrentFilter = filter
-	s.SnapshotID = nil
-	s.CurrentPage = 0
-	s.CountDirty = true
-	documents.LoadDocuments()
+func docArg(args bson.A, i int, what string) (bson.D, error) {
+	if i >= len(args) {
+		return nil, nil
+	}
+	d, ok := args[i].(bson.D)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a document", what)
+	}
+	return d, nil
+}
+
+func intArg(args bson.A, what string) (int64, error) {
+	if len(args) != 1 {
+		return 0, fmt.Errorf("%s() takes one number", what)
+	}
+	n, ok := state.ToFloat64(args[0])
+	if !ok || n < 0 || n != float64(int64(n)) {
+		return 0, fmt.Errorf("%s() takes a non-negative integer", what)
+	}
+	return int64(n), nil
+}
+
+func maxArgs(q shellQuery, n int) error {
+	if len(q.Args) > n {
+		return fmt.Errorf("%s() takes at most %d argument(s)", q.Method, n)
+	}
+	if len(q.Chain) > 0 {
+		return fmt.Errorf("%s() doesn't support chained .%s()", q.Method, q.Chain[0].Name)
+	}
+	return nil
 }
 
 func runShellQuery(query string) {
 	s := state.S
-	state.ShowLoading("Executing query")
-	defer state.DoneLoading()
 	if s.CurrentDB == "" {
 		state.ShowError("Select a database first.")
 		return
 	}
-
-	collection, method, argsStr, err := parseMongoQuery(query)
+	q, err := parseShellQuery(query)
 	if err != nil {
 		state.ShowError(err.Error())
 		return
 	}
+	if err := runParsed(q); err != nil {
+		state.ShowError(err.Error())
+	}
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), s.QueryTimeout*3)
-	defer cancel()
+func runParsed(q shellQuery) error {
+	s := state.S
+	ns := state.Namespace{DB: s.CurrentDB, Coll: q.Coll}
+	coll := s.Client.Database(ns.DB).Collection(ns.Coll)
+	label := func(m string) string { return fmt.Sprintf("%s(%s)", m, ns) }
+	timeout := 3 * s.QueryTimeout
 
-	coll := s.Client.Database(s.CurrentDB).Collection(collection)
-
-	switch method {
+	switch q.Method {
 	case "find":
-		filter, err := parseFilter(argsStr)
-		if err != nil {
-			state.ShowError(fmt.Sprintf("Invalid filter: %s", err))
-			return
+		if len(q.Args) > 2 {
+			return fmt.Errorf("find() takes a filter and an optional projection")
 		}
-		// Use the normal paginated browse path
-		s.CurrentColl = collection
-		s.CurrentFilter = filter
-		s.SnapshotID = nil
-		s.CurrentPage = 0
-		s.CountDirty = true
-		documents.SelectCollectionInList(collection)
-		documents.LoadDocuments()
+		filter, err := docArg(q.Args, 0, "find() filter")
+		if err != nil {
+			return err
+		}
+		proj, err := docArg(q.Args, 1, "find() projection")
+		if err != nil {
+			return err
+		}
+		var sort bson.D
+		var skip, limit int64
+		for _, c := range q.Chain {
+			switch c.Name {
+			case "sort":
+				if sort, err = docArg(c.Args, 0, "sort()"); err != nil || len(c.Args) != 1 {
+					return fmt.Errorf("sort() takes one document")
+				}
+			case "projection":
+				if proj, err = docArg(c.Args, 0, "projection()"); err != nil || len(c.Args) != 1 {
+					return fmt.Errorf("projection() takes one document")
+				}
+			case "limit":
+				if limit, err = intArg(c.Args, "limit"); err != nil {
+					return err
+				}
+			case "skip":
+				if skip, err = intArg(c.Args, "skip"); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported cursor method .%s() — supported: sort, limit, skip, projection", c.Name)
+			}
+		}
+		documents.StopLiveMode()
+		if s.CurrentColl != q.Coll {
+			s.CurrentColl = q.Coll
+			s.CurrentSort = nil
+		}
+		documents.SelectCollectionInList(q.Coll)
+		setBrowseQuery(filter, proj, sort, skip, limit)
 
 	case "findOne":
-		filter, err := parseFilter(argsStr)
+		if err := maxArgs(q, 2); err != nil {
+			return err
+		}
+		filter, err := docArg(q.Args, 0, "findOne() filter")
 		if err != nil {
-			state.ShowError(fmt.Sprintf("Invalid filter: %s", err))
-			return
+			return err
 		}
-		var result bson.M
-		if err := coll.FindOne(ctx, filter).Decode(&result); err != nil {
-			if err == mongo.ErrNoDocuments {
-				state.ShowError("No matching document found.")
-			} else {
-				state.ShowError(fmt.Sprintf("findOne error: %s", err))
+		proj, err := docArg(q.Args, 1, "findOne() projection")
+		if err != nil {
+			return err
+		}
+		if filter == nil {
+			filter = bson.D{}
+		}
+		opts := options.FindOne()
+		if len(proj) > 0 {
+			opts.SetProjection(proj)
+		}
+		state.AsyncTimeout("Executing findOne", timeout, func(ctx context.Context) func() {
+			var doc bson.D
+			err := coll.FindOne(ctx, filter, opts).Decode(&doc)
+			return func() {
+				if err == mongo.ErrNoDocuments {
+					state.ShowError("No matching document found.")
+					return
+				}
+				if err != nil {
+					state.ShowError("findOne error: " + err.Error())
+					return
+				}
+				documents.ShowResultDocs([]bson.D{doc}, ns, label("findOne"), true, len(proj) == 0)
+				documents.ExpandDocument(0)
 			}
-			return
-		}
-		s.CurrentDocs = []bson.M{result}
-		prettyBytes, _ := json.MarshalIndent(result, "", "  ")
-		s.DocDetail.SetText(documents.HighlightJSON(string(prettyBytes)))
-		s.DocDetail.SetTitle(documents.DocTitle(result, "findOne"))
-		s.DocDetail.ScrollToBeginning()
-		s.DocPages.SwitchToPage("detail")
-		s.App.SetFocus(s.DocDetail)
+		})
 
 	case "count", "countDocuments":
-		filter, err := parseFilter(argsStr)
-		if err != nil {
-			state.ShowError(fmt.Sprintf("Invalid filter: %s", err))
-			return
+		if err := maxArgs(q, 1); err != nil {
+			return err
 		}
-		count, err := coll.CountDocuments(ctx, filter)
+		filter, err := docArg(q.Args, 0, q.Method+"() filter")
 		if err != nil {
-			state.ShowError(fmt.Sprintf("count error: %s", err))
-			return
+			return err
 		}
-		s.DocDetail.SetText(fmt.Sprintf("%d", count))
-		s.DocDetail.SetTitle(fmt.Sprintf(" count [yellow](%s.%s)[white] ", s.CurrentDB, collection))
-		s.DocDetail.ScrollToBeginning()
-		s.DocPages.SwitchToPage("detail")
-		s.App.SetFocus(s.DocDetail)
+		if filter == nil {
+			filter = bson.D{}
+		}
+		state.AsyncTimeout("Counting", timeout, func(ctx context.Context) func() {
+			n, err := coll.CountDocuments(ctx, filter)
+			return func() {
+				if err != nil {
+					state.ShowError("count error: " + err.Error())
+					return
+				}
+				state.ShowMessage(fmt.Sprintf(" count [yellow](%s)[white] ", tview.Escape(ns.String())), strconv.FormatInt(n, 10))
+			}
+		})
+
+	case "estimatedDocumentCount":
+		if err := maxArgs(q, 0); err != nil {
+			return err
+		}
+		state.AsyncTimeout("Counting", timeout, func(ctx context.Context) func() {
+			n, err := coll.EstimatedDocumentCount(ctx)
+			return func() {
+				if err != nil {
+					state.ShowError("estimatedDocumentCount error: " + err.Error())
+					return
+				}
+				state.ShowMessage(fmt.Sprintf(" estimated count [yellow](%s)[white] ", tview.Escape(ns.String())), strconv.FormatInt(n, 10))
+			}
+		})
 
 	case "aggregate":
-		strict := relaxedJSONToStrict(argsStr)
-		var pipeline []bson.M
-		if err := json.Unmarshal([]byte(strict), &pipeline); err != nil {
-			state.ShowError(fmt.Sprintf("Invalid pipeline: %s", err))
-			return
+		if err := maxArgs(q, 2); err != nil {
+			return err
 		}
-		// Inject a $limit stage if the user hasn't already included one
-		hasLimit := false
-		for _, stage := range pipeline {
-			if _, ok := stage["$limit"]; ok {
-				hasLimit = true
-				break
+		if len(q.Args) == 0 {
+			return fmt.Errorf("aggregate() takes a pipeline array")
+		}
+		stages, ok := q.Args[0].(bson.A)
+		if !ok {
+			return fmt.Errorf("aggregate() pipeline must be an array of stages")
+		}
+		pipeline := make(mongo.Pipeline, 0, len(stages))
+		for _, st := range stages {
+			d, ok := st.(bson.D)
+			if !ok || len(d) != 1 {
+				return fmt.Errorf("each pipeline stage must be a document with one operator")
+			}
+			pipeline = append(pipeline, d)
+		}
+		aggOpts, err := docArg(q.Args, 1, "aggregate() options")
+		if err != nil {
+			return err
+		}
+		opts := options.Aggregate()
+		if v, ok := mjson.Get(aggOpts, "allowDiskUse"); ok {
+			if b, ok := v.(bool); ok {
+				opts.SetAllowDiskUse(b)
 			}
 		}
-		if !hasLimit {
-			pipeline = append(pipeline, bson.M{"$limit": int64(maxResultCap)})
+		target, writes := outputTarget(pipeline, ns.DB)
+		if writes && !state.CheckWrite(state.ActInsert, target) {
+			return nil
 		}
-		cursor, err := coll.Aggregate(ctx, pipeline)
-		if err != nil {
-			state.ShowError(fmt.Sprintf("aggregate error: %s", err))
-			return
-		}
-		defer func() { _ = cursor.Close(ctx) }()
-		var docs []bson.M
-		if err := cursor.All(ctx, &docs); err != nil {
-			state.ShowError(fmt.Sprintf("aggregate decode error: %s", err))
-			return
-		}
-		title := fmt.Sprintf("aggregate(%s.%s)", s.CurrentDB, collection)
-		if len(docs) >= maxResultCap {
-			title += " ⚠ capped at 10,000"
-		}
-		showResultDocs(docs, title)
+		state.AsyncTimeout("Running aggregation", timeout, func(ctx context.Context) func() {
+			docs, capped, err := aggregate(ctx, coll, pipeline, opts)
+			return func() {
+				if err != nil {
+					state.ShowError("aggregate error: " + err.Error())
+					return
+				}
+				if writes {
+					state.ShowMessage(" aggregate ", "Pipeline wrote its output to "+target.String())
+					return
+				}
+				if len(docs) == 0 {
+					state.ShowMessage(" aggregate ", "(no results)")
+					return
+				}
+				l := label("aggregate")
+				if capped {
+					l += " ⚠ showing first 10,000"
+				}
+				documents.ShowResultDocs(docs, ns, l, false, false)
+			}
+		})
 
 	case "distinct":
-		// Expect: "fieldName" or "fieldName", {filter}
-		parts := strings.SplitN(argsStr, ",", 2)
-		fieldStr := strings.TrimSpace(parts[0])
-		fieldStr = strings.Trim(fieldStr, "\"'")
-		filter := bson.M{}
-		if len(parts) > 1 {
-			f, err := parseFilter(parts[1])
-			if err != nil {
-				state.ShowError(fmt.Sprintf("Invalid filter: %s", err))
-				return
-			}
-			filter = f
+		if err := maxArgs(q, 2); err != nil {
+			return err
 		}
-		values, err := coll.Distinct(ctx, fieldStr, filter)
+		field, ok := "", len(q.Args) > 0
+		if ok {
+			field, ok = q.Args[0].(string)
+		}
+		if !ok || field == "" {
+			return fmt.Errorf("distinct() takes a field name string and an optional filter")
+		}
+		filter, err := docArg(q.Args, 1, "distinct() filter")
 		if err != nil {
-			state.ShowError(fmt.Sprintf("distinct error: %s", err))
-			return
+			return err
 		}
-		warning := ""
-		if len(values) > maxResultCap {
-			values = values[:maxResultCap]
-			warning = "\n\n[yellow]⚠ Results capped at 10,000 (total exceeds limit)[white]"
+		if filter == nil {
+			filter = bson.D{}
 		}
-		jsonBytes, _ := json.MarshalIndent(values, "", "  ")
-		s.DocDetail.SetText(string(jsonBytes) + warning)
-		s.DocDetail.SetTitle(fmt.Sprintf(" distinct [yellow](%s.%s.%s)[white] ", s.CurrentDB, collection, fieldStr))
-		s.DocDetail.ScrollToBeginning()
-		s.DocPages.SwitchToPage("detail")
-		s.App.SetFocus(s.DocDetail)
+		state.AsyncTimeout("Running distinct", timeout, func(ctx context.Context) func() {
+			values, err := coll.Distinct(ctx, field, filter)
+			return func() {
+				if err != nil {
+					state.ShowError("distinct error: " + err.Error())
+					return
+				}
+				total := len(values)
+				if total > maxResultCap {
+					values = values[:maxResultCap]
+				}
+				toks := mjson.Tokens(bson.A(values), true)
+				if total > maxResultCap {
+					toks = append(toks, mjson.Token{Text: fmt.Sprintf("\n\n⚠ Showing %d of %d values", maxResultCap, total), Kind: mjson.Error})
+				}
+				state.SetDetail(fmt.Sprintf(" distinct [yellow](%s.%s)[white] [green]%d[white] ", tview.Escape(ns.String()), tview.Escape(field), total), toks)
+			}
+		})
 
 	default:
-		state.ShowError(fmt.Sprintf("Unsupported method: %s\n\nSupported: find, findOne, count, countDocuments, aggregate, distinct", method))
+		return fmt.Errorf("unsupported method: %s\n\nSupported: find, findOne, count, countDocuments, estimatedDocumentCount, aggregate, distinct", q.Method)
 	}
+	return nil
 }
 
-func showResultDocs(docs []bson.M, title string) {
-	s := state.S
-	if len(docs) == 0 {
-		state.ShowError("(no results)")
-		return
+// outputTarget reports the namespace written by a trailing $out/$merge stage.
+func outputTarget(p mongo.Pipeline, db string) (state.Namespace, bool) {
+	if len(p) == 0 {
+		return state.Namespace{}, false
 	}
-	s.CurrentDocs = docs
-	s.CurrentPage = 0
-	s.TotalDocs = int64(len(docs))
-
-	s.DocList.Clear()
-	for i, doc := range docs {
-		jsonBytes, err := json.Marshal(doc)
-		if err != nil {
-			s.DocList.AddItem(fmt.Sprintf("[red]Error marshalling record %d", i), "", 0, nil)
-			continue
+	last := p[len(p)-1][0]
+	var spec interface{}
+	switch last.Key {
+	case "$out":
+		spec = last.Value
+	case "$merge":
+		spec = last.Value
+		if d, ok := last.Value.(bson.D); ok {
+			spec, _ = mjson.Get(d, "into")
 		}
-		s.DocList.AddItem(string(jsonBytes), "", 0, nil)
+	default:
+		return state.Namespace{}, false
 	}
-
-	s.DocPages.SwitchToPage("list")
-	s.DocList.SetTitle(fmt.Sprintf(" Results [green](%d)[white] %s ", len(docs), title))
-	s.App.SetFocus(s.DocList)
+	ns := state.Namespace{DB: db}
+	switch v := spec.(type) {
+	case string:
+		ns.Coll = v
+	case bson.D:
+		if d, ok := mjson.Get(v, "db"); ok {
+			ns.DB, _ = d.(string)
+		}
+		if c, ok := mjson.Get(v, "coll"); ok {
+			ns.Coll, _ = c.(string)
+		}
+	}
+	return ns, true
 }
 
+// aggregate runs the pipeline unchanged and reads at most maxResultCap
+// documents, so terminal stages like $out/$merge keep working.
+func aggregate(ctx context.Context, coll *mongo.Collection, p mongo.Pipeline, opts *options.AggregateOptions) ([]bson.D, bool, error) {
+	cur, err := coll.Aggregate(ctx, p, opts)
+	if err != nil {
+		return nil, false, err
+	}
+	defer func() { _ = cur.Close(context.Background()) }()
+	var docs []bson.D
+	for cur.Next(ctx) {
+		if len(docs) == maxResultCap {
+			return docs, true, nil
+		}
+		var d bson.D
+		if err := cur.Decode(&d); err != nil {
+			return nil, false, err
+		}
+		docs = append(docs, d)
+	}
+	return docs, false, cur.Err()
+}
+
+// suggestionText maps escaped autocomplete entries back to the raw text.
+var suggestionText = map[string]string{}
+
+// GetAutocompleteSuggestions returns escaped entries for the query bar's
+// autocomplete list; SuggestionText maps a chosen entry back to raw text.
 func GetAutocompleteSuggestions(currentText string) []string {
+	raw := rawSuggestions(currentText)
+	suggestionText = make(map[string]string, len(raw))
+	out := make([]string, len(raw))
+	for i, r := range raw {
+		out[i] = tview.Escape(r)
+		suggestionText[out[i]] = r
+	}
+	return out
+}
+
+// SuggestionText returns the raw text for an autocomplete entry.
+func SuggestionText(entry string) string {
+	if r, ok := suggestionText[entry]; ok {
+		return r
+	}
+	return entry
+}
+
+func rawSuggestions(currentText string) []string {
 	s := state.S
 	text := strings.TrimSpace(currentText)
 
-	// Command mode autocomplete
 	if strings.HasPrefix(text, ":") {
 		return getCommandSuggestions(text[1:])
 	}
-
-	// Don't suggest once we're inside parentheses
 	if strings.Contains(text, "(") {
 		return nil
 	}
-
-	// Suggest "db." prefix
 	if text == "" || (len(text) < 3 && strings.HasPrefix("db.", text)) {
 		return []string{"db."}
 	}
-
 	if !strings.HasPrefix(text, "db.") {
 		return nil
 	}
+	rest := text[3:]
 
-	rest := text[3:] // after "db."
-
-	if strings.Contains(rest, ".") {
-		// db.collName.partialMethod → suggest methods
-		dotIdx := strings.LastIndex(rest, ".")
-		collName := rest[:dotIdx]
-		partial := rest[dotIdx+1:]
-
-		methods := []string{"find(", "findOne(", "count()", "countDocuments()", "aggregate([", "distinct(", "drop()"}
-		var suggestions []string
-		for _, m := range methods {
-			if strings.HasPrefix(m, partial) {
-				suggestions = append(suggestions, "db."+collName+"."+m)
-			}
-		}
-		return suggestions
-	}
-
-	// db.partialCollName → suggest collection names
 	var suggestions []string
-	for _, c := range s.CachedCollNames {
-		if strings.HasPrefix(c, rest) {
+	for _, e := range s.AllCollItems {
+		c := e.Name
+		if strings.HasPrefix(rest, c+".") {
+			partial := rest[len(c)+1:]
+			for _, m := range []string{"find(", "findOne(", "countDocuments(", "estimatedDocumentCount()", "aggregate([", "distinct("} {
+				if strings.HasPrefix(m, partial) {
+					suggestions = append(suggestions, "db."+c+"."+m)
+				}
+			}
+		} else if strings.HasPrefix(c, rest) {
 			suggestions = append(suggestions, "db."+c+".")
 		}
 	}
 	return suggestions
 }
 
+func showPanel(page string, list tview.Primitive) {
+	s := state.S
+	if s.WideMode {
+		s.DocPages.SwitchToPage(page)
+	}
+	s.App.SetFocus(list)
+	state.RefreshPanelBorders()
+}
+
 func executeCommand(cmd string) {
 	s := state.S
-	cmd = strings.TrimSpace(cmd)
-	parts := strings.Fields(strings.ToLower(cmd))
+	parts := strings.Fields(strings.TrimSpace(cmd))
 	if len(parts) == 0 {
 		return
 	}
+	name, args := strings.ToLower(parts[0]), parts[1:]
 
-	switch parts[0] {
+	switch name {
 	case "indexes", "idx":
 		if s.CurrentDB == "" || s.CurrentColl == "" {
 			state.ShowError("Select a collection first")
@@ -307,122 +482,95 @@ func executeCommand(cmd string) {
 		}
 		documents.ShowIndexes()
 
-	case "stats":
+	case "stats", "profile":
 		documents.ShowStats()
 
-	case "sort":
-		if len(parts) < 2 {
-			s.CurrentSortField = ""
-			s.CurrentSortOrder = 0
-			s.CurrentPage = 0
-			documents.LoadDocuments()
+	case "killop":
+		if len(args) != 1 {
+			state.ShowError("Usage: :killop <opid>  (opids are listed in the stats view, S)")
 			return
 		}
-		field := parts[1]
-		s.CurrentSortOrder = 1
-		if strings.HasPrefix(field, "-") {
-			field = field[1:]
-			s.CurrentSortOrder = -1
+		documents.KillOpConfirm(args[0])
+
+	case "sort":
+		if s.CurrentDB == "" || s.CurrentColl == "" {
+			state.ShowError("Select a collection first")
+			return
 		}
-		s.CurrentSortField = field
-		s.CurrentPage = 0
-		documents.LoadDocuments()
+		var spec bson.D
+		for _, f := range args {
+			order := 1
+			if strings.HasPrefix(f, "-") {
+				f, order = f[1:], -1
+			} else {
+				f = strings.TrimPrefix(f, "+")
+			}
+			if f != "" {
+				spec = append(spec, bson.E{Key: f, Value: order})
+			}
+		}
+		documents.SetSort(spec)
 
 	case "limit":
-		if len(parts) < 2 {
-			state.ShowError(fmt.Sprintf("Current limit: %d", state.PageSize))
+		if len(args) < 1 {
+			state.ShowMessage(" limit ", fmt.Sprintf("Current page size: %d", state.PageSize))
 			return
 		}
-		n, err := strconv.Atoi(parts[1])
+		n, err := strconv.Atoi(args[0])
 		if err != nil || n < 1 || n > 10000 {
 			state.ShowError("Invalid limit (1-10000)")
 			return
 		}
 		state.PageSize = n
 		s.CurrentPage = 0
+		s.PageStarts = nil
 		documents.LoadDocuments()
 
 	case "export":
-		if len(parts) < 2 {
-			state.ShowError("Usage: :export json | :export csv")
+		usage := "Usage: :export json|csv [all] [path]\n\nWithout 'all', exports the selection or the current page.\nWith 'all', streams every document matching the current query."
+		if len(args) < 1 {
+			state.ShowError(usage)
 			return
 		}
-		switch parts[1] {
-		case "json":
-			documents.ExportJSON()
-		case "csv":
-			documents.ExportCSV()
-		default:
-			state.ShowError("Usage: :export json | :export csv")
+		format := strings.ToLower(args[0])
+		if format != "json" && format != "csv" {
+			state.ShowError(usage)
+			return
 		}
+		rest := args[1:]
+		all := len(rest) > 0 && strings.EqualFold(rest[0], "all")
+		if all {
+			rest = rest[1:]
+		}
+		documents.Export(format, all, strings.Join(rest, " "))
 
 	case "use", "database", "db":
-		// Preserve original case for database name
-		rawParts := strings.Fields(strings.TrimSpace(cmd))
-		if len(rawParts) < 2 {
-			// No arg: show databases view
-			if s.WideMode {
-				s.DocPages.SwitchToPage("databases")
-				s.App.SetFocus(s.DbList)
-				state.RefreshPanelBorders()
-			} else {
-				s.App.SetFocus(s.DbList)
-				state.RefreshPanelBorders()
-			}
+		if len(args) < 1 {
+			showPanel("databases", s.DbList)
 			return
 		}
-		documents.SelectDatabase(rawParts[1])
+		documents.SelectDatabase(args[0], nil)
 
 	case "databases", "dbs":
-		if s.WideMode {
-			s.DocPages.SwitchToPage("databases")
-			s.App.SetFocus(s.DbList)
-			state.RefreshPanelBorders()
-		} else {
-			s.App.SetFocus(s.DbList)
-			state.RefreshPanelBorders()
-		}
+		showPanel("databases", s.DbList)
 
 	case "collection", "coll":
-		rawParts := strings.Fields(strings.TrimSpace(cmd))
-		if len(rawParts) < 2 {
-			// No arg: show collections view
-			if s.CurrentDB == "" {
-				state.ShowError("Select a database first")
-				return
-			}
-			if s.WideMode {
-				s.DocPages.SwitchToPage("collections")
-				s.App.SetFocus(s.CollList)
-				state.RefreshPanelBorders()
-			} else {
-				s.App.SetFocus(s.CollList)
-				state.RefreshPanelBorders()
-			}
-			return
-		}
 		if s.CurrentDB == "" {
 			state.ShowError("Select a database first")
 			return
 		}
-		documents.SelectCollection(rawParts[1])
+		if len(args) < 1 {
+			showPanel("collections", s.CollList)
+			return
+		}
+		documents.SelectCollection(args[0])
 
 	case "collections", "colls":
 		if s.CurrentDB == "" {
 			state.ShowError("Select a database first")
 			return
 		}
-		if s.WideMode {
-			s.DocPages.SwitchToPage("collections")
-			s.App.SetFocus(s.CollList)
-			state.RefreshPanelBorders()
-		} else {
-			s.App.SetFocus(s.CollList)
-			state.RefreshPanelBorders()
-		}
-
-	case "profile":
-		documents.ShowStats()
+		showPanel("collections", s.CollList)
 
 	case "refresh":
 		documents.Refresh()
@@ -431,7 +579,7 @@ func executeCommand(cmd string) {
 		documents.FullRefresh()
 
 	case "watch":
-		if len(parts) < 2 {
+		if len(args) < 1 {
 			if s.LiveMode {
 				documents.StopLiveMode()
 			} else {
@@ -439,11 +587,9 @@ func executeCommand(cmd string) {
 			}
 			return
 		}
-		// Preserve original case for duration string
-		rawParts := strings.Fields(strings.TrimSpace(cmd))
-		dur, err := time.ParseDuration(rawParts[1])
+		dur, err := time.ParseDuration(args[0])
 		if err != nil {
-			state.ShowError(fmt.Sprintf("Invalid duration: %s (try: 2s, 5s, 1m)", rawParts[1]))
+			state.ShowError(fmt.Sprintf("Invalid duration: %s (try: 2s, 5s, 1m)", args[0]))
 			return
 		}
 		if dur < 500*time.Millisecond {
@@ -463,49 +609,47 @@ func executeCommand(cmd string) {
 
 func getCommandSuggestions(partial string) []string {
 	s := state.S
-	partial = strings.ToLower(partial)
+	lower := strings.ToLower(partial)
 
 	commands := []string{
-		":indexes", ":idx", ":stats", ":sort ", ":limit ",
-		":export json", ":export csv", ":use ", ":profile",
-		":refresh", ":refresh!", ":watch ",
+		":indexes", ":idx", ":stats", ":sort ", ":limit ", ":killop ",
+		":export json", ":export csv", ":export json all", ":export csv all",
+		":use ", ":profile", ":refresh", ":refresh!", ":watch ",
 		":databases", ":dbs", ":database ", ":db ",
-		":collections", ":colls", ":collection ",
+		":collections", ":colls", ":collection ", ":coll ",
 	}
 	var suggestions []string
 	for _, cmd := range commands {
-		if strings.HasPrefix(cmd, ":"+partial) {
+		if strings.HasPrefix(cmd, ":"+lower) && cmd != ":"+partial {
 			suggestions = append(suggestions, cmd)
 		}
 	}
 
-	// For ":use " / ":database " / ":db ", suggest database names
-	for _, prefix := range []string{"use ", "database ", "db "} {
-		if strings.HasPrefix(partial, prefix) {
-			dbPartial := strings.TrimPrefix(partial, prefix)
-			for i := 0; i < s.DbList.GetItemCount(); i++ {
-				main, _ := s.DbList.GetItemText(i)
-				name := state.BareName(main)
-				if strings.HasPrefix(strings.ToLower(name), dbPartial) {
-					suggestions = append(suggestions, ":"+prefix+name)
+	complete := func(prefixes []string, names []string) {
+		for _, prefix := range prefixes {
+			if !strings.HasPrefix(lower, prefix) {
+				continue
+			}
+			p := strings.ToLower(partial[len(prefix):])
+			for _, n := range names {
+				if strings.HasPrefix(strings.ToLower(n), p) {
+					suggestions = append(suggestions, ":"+prefix+n)
 				}
 			}
 		}
 	}
-
-	// For ":collection " / ":coll ", suggest collection names
-	for _, prefix := range []string{"collection ", "coll "} {
-		if strings.HasPrefix(partial, prefix) {
-			collPartial := strings.TrimPrefix(partial, prefix)
-			for i := 0; i < s.CollList.GetItemCount(); i++ {
-				main, _ := s.CollList.GetItemText(i)
-				name := state.BareName(main)
-				if strings.HasPrefix(strings.ToLower(name), collPartial) {
-					suggestions = append(suggestions, ":"+prefix+name)
-				}
-			}
-		}
+	var dbs, colls, ops []string
+	for _, e := range s.AllDBItems {
+		dbs = append(dbs, e.Name)
 	}
-
+	for _, e := range s.AllCollItems {
+		colls = append(colls, e.Name)
+	}
+	for id := range s.StatsOps {
+		ops = append(ops, id)
+	}
+	complete([]string{"use ", "database ", "db "}, dbs)
+	complete([]string{"collection ", "coll "}, colls)
+	complete([]string{"killop "}, ops)
 	return suggestions
 }

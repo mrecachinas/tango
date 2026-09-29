@@ -24,10 +24,26 @@ make build
 
 ```sh
 tango --mongo-host localhost --mongo-port 27017
-tango -u admin -p secret --mongo-host db.example.com
+tango --uri 'mongodb+srv://cluster0.example.net/?authSource=admin' -u admin   # prompts for password
+tango -u admin --auth-source admin --mongo-host db.example.com
 tango --profile staging                          # connection profile (~/.tango.yaml)
 TANGO_MONGO_PASSWORD=secret tango -u admin       # password via env var
 ```
+
+Settings resolve as flag > environment (`TANGO_MONGO_URI`, `TANGO_MONGO_PASSWORD`) > profile.
+Profiles accept `uri`, `mongo_url`, `mongo_port`, `mongo_user`, `mongo_password`, `mongo_db`,
+`auth_source` and `refresh_rate` (seconds between metrics refreshes; also `--refresh-rate`).
+
+## Querying
+
+The query bar takes a filter for the current collection (`{age: {$gt: 30}}`) or mongo-shell
+calls: `find` (with `.sort()`, `.limit()`, `.skip()`, `.projection()`), `findOne`,
+`countDocuments`, `estimatedDocumentCount`, `distinct` and `aggregate` (including `$out`/`$merge`).
+Shell helpers such as `ObjectId("…")`, `ISODate("…")`, `NumberLong(…)`, `NumberDecimal("…")`,
+`UUID("…")` and `/regex/i` are supported.
+
+Documents are shown, copied and edited in the same shell syntax, so editing preserves BSON types
+(int32/int64/double, dates, ObjectIds, …) and field order exactly.
 
 ## Keybindings
 
@@ -39,9 +55,12 @@ TANGO_MONGO_PASSWORD=secret tango -u admin       # password via env var
 | `?` | Help overlay |
 | `Enter` / `Esc` | Select / go back |
 | `n` / `p` | Next / previous page |
+| `/` in database/collection lists | Filter the list |
 | `t` | Toggle JSON / tree view |
+| `s` | Sort (or `:sort field -other`) |
 | `d` / `e` / `i` | Delete / edit / insert document |
-| `c` / `x` / `C` | Copy / export JSON / export CSV |
+| `c` / `x` / `C` | Copy / export JSON / export CSV (`:export json\|csv [all] [path]`) |
+| `S` | Server stats: active ops, top collections, slow queries (`:killop <opid>`) |
 | `W` | Wide mode (full-width documents) |
 | `L` | Live mode (auto-refresh) |
 | `r` / `R` | Refresh / full refresh |
@@ -52,6 +71,13 @@ TANGO_MONGO_PASSWORD=secret tango -u admin       # password via env var
 ```sh
 make example-run    # starts MongoDB in Docker, seeds data, launches tango
 make example-down   # tear down
+```
+
+## Tests
+
+```sh
+make test       # unit tests
+make test-e2e   # drives the TUI against a throwaway MongoDB in Docker
 ```
 
 ## License

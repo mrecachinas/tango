@@ -1,96 +1,98 @@
 package documents
 
 import (
+	"context"
 	"fmt"
-	"time"
 
+	"github.com/rivo/tview"
+	"go.mongodb.org/mongo-driver/bson"
+
+	"tango/internal/mjson"
 	"tango/internal/state"
 )
 
+// ShowIndexes lists the indexes of the current collection.
 func ShowIndexes() {
 	s := state.S
 	if s.CurrentDB == "" || s.CurrentColl == "" {
 		return
 	}
+	ShowIndexesFor(state.Namespace{DB: s.CurrentDB, Coll: s.CurrentColl})
+}
 
-	ctx, cancel := state.NewCtx()
-	defer cancel()
+// ShowIndexesFor lists the indexes of ns without changing the browsed collection.
+func ShowIndexesFor(ns state.Namespace) {
+	s := state.S
+	coll := s.Client.Database(ns.DB).Collection(ns.Coll)
+	state.Async("Loading indexes", func(ctx context.Context) func() {
+		cur, err := coll.Indexes().List(ctx)
+		var idxs []bson.D
+		if err == nil {
+			err = cur.All(ctx, &idxs)
+		}
+		return func() {
+			if err != nil {
+				state.ShowError(fmt.Sprintf("Error listing indexes on %s: %s", ns, err))
+				return
+			}
+			s.CurrentIndexes = idxs
+			s.IndexesNS = ns
+			s.IndexList.Clear()
+			for _, idx := range idxs {
+				name, _ := mjson.Get(idx, "name")
+				key, _ := mjson.Get(idx, "key")
+				nameStr, _ := name.(string)
+				s.IndexList.AddItem(tview.Escape(nameStr), tview.Escape(mjson.Compact(key)), 0, nil)
+			}
+			s.IndexList.SetTitle(fmt.Sprintf(" Indexes [yellow](%s)[white] [green]%d[white] ", tview.Escape(ns.String()), len(idxs)))
+			s.DocPages.SwitchToPage("indexes")
+			s.App.SetFocus(s.IndexList)
+			state.RefreshPanelBorders()
+		}
+	})
+}
 
-	cursor, err := s.Client.Database(s.CurrentDB).Collection(s.CurrentColl).Indexes().List(ctx)
-	if err != nil {
-		state.ShowError(fmt.Sprintf("Error listing indexes: %s", err))
+// ShowIndexDetail shows the full specification of index i.
+func ShowIndexDetail(i int) {
+	s := state.S
+	if i < 0 || i >= len(s.CurrentIndexes) {
 		return
 	}
-	defer func() { _ = cursor.Close(ctx) }()
-
-	s.CurrentIndexes = nil
-	if err := cursor.All(ctx, &s.CurrentIndexes); err != nil {
-		state.ShowError(fmt.Sprintf("Error decoding indexes: %s", err))
-		return
-	}
-
-	s.IndexList.Clear()
-	for _, idx := range s.CurrentIndexes {
-		name, _ := idx["name"].(string)
-		keySpec := fmt.Sprintf("%v", idx["key"])
-		s.IndexList.AddItem(name, keySpec, 0, nil)
-	}
-
-	s.IndexList.SetTitle(fmt.Sprintf(" Indexes [yellow](%s.%s)[white] [green]%d[white] ", s.CurrentDB, s.CurrentColl, len(s.CurrentIndexes)))
-	s.DocPages.SwitchToPage("indexes")
-	s.App.SetFocus(s.IndexList)
-	state.RefreshPanelBorders()
+	idx := s.CurrentIndexes[i]
+	name, _ := mjson.Get(idx, "name")
+	nameStr, _ := name.(string)
+	state.SetDetail(fmt.Sprintf(" Index Detail [yellow](%s)[white] ", tview.Escape(nameStr)), mjson.Tokens(idx, true))
+	s.DetailBackPage = "indexes"
 }
 
 func DropIndexConfirm() {
-	if !state.CheckWriteAccess() {
-		return
-	}
 	s := state.S
 	idx := s.IndexList.GetCurrentItem()
 	if idx < 0 || idx >= len(s.CurrentIndexes) {
 		return
 	}
-	name, _ := s.CurrentIndexes[idx]["name"].(string)
+	ns := s.IndexesNS
+	if !state.CheckWrite(state.ActDropIndex, ns) {
+		return
+	}
+	nameVal, _ := mjson.Get(s.CurrentIndexes[idx], "name")
+	name, _ := nameVal.(string)
 	if name == "_id_" {
-		s.StatusBar.SetText(" [red]Cannot drop the _id_ index")
-		go func() {
-			time.Sleep(2 * time.Second)
-			s.App.QueueUpdateDraw(func() {
-				s.StatusBar.SetText(s.DefaultStatusText)
-			})
-		}()
+		state.FlashError("Cannot drop the _id_ index")
 		return
 	}
-
-	s.ConfirmModal.ClearButtons()
-	s.ConfirmModal.
-		SetText(fmt.Sprintf("Drop index '%s'? This cannot be undone!", name)).
-		AddButtons([]string{"Drop", "Cancel"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			if buttonLabel == "Drop" {
-				dropIndex(name)
+	confirm(s.ConfirmModal, "confirm", fmt.Sprintf("Drop index '%s' on %s? This cannot be undone!", name, ns), "Drop", s.IndexList, func() {
+		coll := s.Client.Database(ns.DB).Collection(ns.Coll)
+		state.Async("Dropping index", func(ctx context.Context) func() {
+			_, err := coll.Indexes().DropOne(ctx, name)
+			return func() {
+				if err != nil {
+					state.FlashError("Drop index failed: " + err.Error())
+					return
+				}
+				state.FlashStatus(fmt.Sprintf(" [green]Index '%s' dropped", tview.Escape(name)))
+				ShowIndexesFor(ns)
 			}
-			s.RootPages.HidePage("confirm")
-			s.RootPages.SwitchToPage("main")
-			s.App.SetFocus(s.IndexList)
 		})
-	s.RootPages.ShowPage("confirm")
-	s.App.SetFocus(s.ConfirmModal)
-}
-
-func dropIndex(name string) {
-	if !state.CheckWriteAccess() {
-		return
-	}
-	s := state.S
-	ctx, cancel := state.NewCtx()
-	defer cancel()
-	_, err := s.Client.Database(s.CurrentDB).Collection(s.CurrentColl).Indexes().DropOne(ctx, name)
-	if err != nil {
-		s.StatusBar.SetText(" [red]Drop index failed: " + err.Error())
-		return
-	}
-	s.StatusBar.SetText(fmt.Sprintf(" [green]Index '%s' dropped successfully", name))
-	ShowIndexes()
+	})
 }

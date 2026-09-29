@@ -35,7 +35,8 @@ make example-down
 ```
 db.users.find({role: "admin"})
 db.orders.findOne({status: "shipped"})
-db.events.count()
-db.products.find({stock: 0})
-show dbs
+db.events.countDocuments({})
+db.products.find({stock: 0}).sort({sku: 1}).limit(10)
+db.users.find({_id: ObjectId("…"), createdAt: {$gte: ISODate("2024-01-01")}})
+:dbs
 ```

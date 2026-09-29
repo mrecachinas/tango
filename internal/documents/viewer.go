@@ -1,38 +1,38 @@
 package documents
 
 import (
-	"encoding/json"
 	"fmt"
-	"sort"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"tango/internal/mjson"
 	"tango/internal/state"
 )
 
-// DocTitle returns a title string using the document's _id value.
-func DocTitle(doc bson.M, viewLabel string) string {
-	s := state.S
-	idVal, ok := doc["_id"]
+// DocTitle returns an (escaped) panel title identifying doc by its _id.
+func DocTitle(doc bson.D, ns state.Namespace, viewLabel string) string {
+	idVal, ok := mjson.Get(doc, "_id")
 	if !ok {
-		if s.CurrentColl != "" {
-			return fmt.Sprintf(" %s [yellow](%s)[white] ", viewLabel, s.CurrentColl)
+		if ns.Coll != "" {
+			return fmt.Sprintf(" %s [yellow](%s)[white] ", tview.Escape(viewLabel), tview.Escape(ns.Coll))
 		}
-		return fmt.Sprintf(" %s ", viewLabel)
+		return fmt.Sprintf(" %s ", tview.Escape(viewLabel))
 	}
 	var idStr string
 	switch v := idVal.(type) {
 	case primitive.ObjectID:
 		idStr = v.Hex()
+	case string:
+		idStr = v
 	default:
-		idStr = fmt.Sprintf("%v", v)
+		idStr = mjson.Compact(v)
 	}
-	if s.CurrentColl != "" {
-		return fmt.Sprintf(" %s • %s ", s.CurrentColl, idStr)
+	idStr = tview.Escape(truncate(idStr, 80))
+	if ns.Coll != "" {
+		return fmt.Sprintf(" %s • %s ", tview.Escape(ns.Coll), idStr)
 	}
 	return fmt.Sprintf(" %s ", idStr)
 }
@@ -42,62 +42,44 @@ func ExpandDocument(index int) {
 	if index < 0 || index >= len(s.CurrentDocs) {
 		return
 	}
-
-	doc := s.CurrentDocs[index]
-	title := DocTitle(doc, "")
-
-	// Prepare tree view in background
-	rootLabel := title
-	root := tview.NewTreeNode(rootLabel).SetColor(tcell.ColorWhite)
-
-	// Sort top-level keys for consistent display
-	keys := make([]string, 0, len(doc))
-	for k := range doc {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		BuildTreeNodes(root, k, doc[k], true)
-	}
-
-	s.DocTree.SetRoot(root).SetCurrentNode(root)
-	s.DocTree.SetTitle(title)
-
-	// Default to JSON detail view
-	prettyBytes, _ := json.MarshalIndent(doc, "", "  ")
-	s.DocDetail.SetText(HighlightJSON(string(prettyBytes)))
-	s.DocDetail.SetTitle(title)
-	s.DocDetail.ScrollToBeginning()
-	s.DocPages.SwitchToPage("detail")
-	s.App.SetFocus(s.DocDetail)
-	state.RefreshPanelBorders()
+	showDocument(s.CurrentDocs[index], s.DocsNS, s.DocsEditable)
 }
 
+// showDocument opens doc in the detail view and remembers where it came from.
+func showDocument(doc bson.D, ns state.Namespace, editable bool) {
+	s := state.S
+	state.SetDetail(DocTitle(doc, ns, "Document"), mjson.Tokens(doc, true))
+	s.ExpandedDoc = doc
+	s.ExpandedNS = ns
+	s.ExpandedEditable = editable
+	s.DocTree.SetRoot(nil)
+}
+
+// CollapseDocument leaves the detail/tree view.
 func CollapseDocument() {
 	s := state.S
 	EndDocSearch(true)
-	s.DocPages.SwitchToPage("list")
-	s.App.SetFocus(s.DocList)
+	back := s.DetailBackPage
+	if back == "" {
+		back = "list"
+	}
+	s.DocPages.SwitchToPage(back)
+	s.App.SetFocus(state.ActiveDocPanel())
 	state.RefreshPanelBorders()
 }
 
-// ToggleToTree switches from JSON detail view to tree view.
+// ToggleToTree switches from the JSON detail view to a collapsible tree.
 func ToggleToTree() {
 	s := state.S
-	idx := s.DocList.GetCurrentItem()
-	if idx < 0 || idx >= len(s.CurrentDocs) {
+	doc := s.ExpandedDoc
+	if doc == nil {
 		return
 	}
-	doc := s.CurrentDocs[idx]
-	title := DocTitle(doc, "")
+	EndDocSearch(true)
+	title := DocTitle(doc, s.ExpandedNS, "Document")
 	root := tview.NewTreeNode(title).SetColor(tcell.ColorWhite)
-	keys := make([]string, 0, len(doc))
-	for k := range doc {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		BuildTreeNodes(root, k, doc[k], true)
+	for _, e := range doc {
+		BuildTreeNodes(root, e.Key, e.Value, true)
 	}
 	s.DocTree.SetRoot(root).SetCurrentNode(root)
 	s.DocTree.SetTitle(title)
@@ -106,155 +88,51 @@ func ToggleToTree() {
 	state.RefreshPanelBorders()
 }
 
-// ToggleToDetail switches from tree view to JSON detail view.
+// ToggleToDetail switches from the tree view back to the JSON detail view.
 func ToggleToDetail() {
 	s := state.S
-	idx := s.DocList.GetCurrentItem()
-	if idx < 0 || idx >= len(s.CurrentDocs) {
+	if s.ExpandedDoc == nil {
 		return
 	}
-	doc := s.CurrentDocs[idx]
-	title := DocTitle(doc, "")
-	prettyBytes, _ := json.MarshalIndent(doc, "", "  ")
-	s.DocDetail.SetText(HighlightJSON(string(prettyBytes)))
-	s.DocDetail.SetTitle(title)
-	s.DocDetail.ScrollToBeginning()
 	s.DocPages.SwitchToPage("detail")
 	s.App.SetFocus(s.DocDetail)
 	state.RefreshPanelBorders()
 }
 
 func BuildTreeNodes(parent *tview.TreeNode, key string, value interface{}, topLevel bool) {
+	k := "[aqua]" + tview.Escape(key) + "[white]: "
 	switch v := value.(type) {
-	case bson.M:
-		label := fmt.Sprintf("[cyan]%s[white]: {%d keys}", key, len(v))
-		node := tview.NewTreeNode(label).SetColor(tcell.ColorWhite)
+	case bson.D:
+		node := tview.NewTreeNode(k + tview.Escape(fmt.Sprintf("{%d keys}", len(v)))).SetColor(tcell.ColorWhite)
 		node.SetExpanded(topLevel)
-		keys := make([]string, 0, len(v))
-		for k := range v {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			BuildTreeNodes(node, k, v[k], false)
+		for _, e := range v {
+			BuildTreeNodes(node, e.Key, e.Value, false)
 		}
 		parent.AddChild(node)
 	case bson.A:
-		label := fmt.Sprintf("[cyan]%s[white]: [%d items]", key, len(v))
-		node := tview.NewTreeNode(label).SetColor(tcell.ColorWhite)
+		node := tview.NewTreeNode(k + tview.Escape(fmt.Sprintf("[%d items]", len(v)))).SetColor(tcell.ColorWhite)
 		node.SetExpanded(topLevel)
 		for i, item := range v {
 			BuildTreeNodes(node, fmt.Sprintf("[%d]", i), item, false)
 		}
 		parent.AddChild(node)
-	case []interface{}:
-		label := fmt.Sprintf("[cyan]%s[white]: [%d items]", key, len(v))
-		node := tview.NewTreeNode(label).SetColor(tcell.ColorWhite)
-		node.SetExpanded(topLevel)
-		for i, item := range v {
-			BuildTreeNodes(node, fmt.Sprintf("[[]%d]", i), item, false)
-		}
-		parent.AddChild(node)
-	case string:
-		node := tview.NewTreeNode(fmt.Sprintf("[cyan]%s[white]: [green]\"%s\"", key, tview.Escape(v))).
-			SetColor(tcell.ColorGreen)
-		parent.AddChild(node)
-	case bool:
-		node := tview.NewTreeNode(fmt.Sprintf("[cyan]%s[white]: [magenta]%v", key, v)).
-			SetColor(tcell.ColorFuchsia)
-		parent.AddChild(node)
-	case nil:
-		node := tview.NewTreeNode(fmt.Sprintf("[cyan]%s[white]: [red]null", key)).
-			SetColor(tcell.ColorRed)
-		parent.AddChild(node)
-	case int, int32, int64, float32, float64:
-		node := tview.NewTreeNode(fmt.Sprintf("[cyan]%s[white]: [yellow]%v", key, v)).
-			SetColor(tcell.ColorYellow)
-		parent.AddChild(node)
 	default:
-		// Fallback for other BSON types (ObjectID, DateTime, etc.)
-		node := tview.NewTreeNode(fmt.Sprintf("[cyan]%s[white]: [yellow]%v", key, v)).
-			SetColor(tcell.ColorYellow)
-		parent.AddChild(node)
-	}
-}
-
-func HighlightJSON(jsonStr string) string {
-	lines := strings.Split(jsonStr, "\n")
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		indent := line[:len(line)-len(trimmed)]
-
-		highlighted := colorizeJSONLine(trimmed)
-		lines[i] = indent + highlighted
-	}
-	return strings.Join(lines, "\n")
-}
-
-func colorizeJSONLine(trimmed string) string {
-	// Pure structural lines
-	if trimmed == "{" || trimmed == "}," || trimmed == "}" ||
-		trimmed == "[" || trimmed == "[," ||
-		trimmed == "[]" || trimmed == "[]," ||
-		trimmed == "]" || trimmed == "]," {
-		return "[white]" + trimmed + "[white]"
-	}
-
-	// Lines starting with a key: "key": value
-	if len(trimmed) > 0 && trimmed[0] == '"' {
-		colonIdx := findColon(trimmed)
-		if colonIdx > 0 {
-			key := trimmed[:colonIdx]
-			rest := trimmed[colonIdx:]
-			// rest starts with ": "
-			if len(rest) >= 2 {
-				value := strings.TrimSpace(rest[1:])
-				return "[cyan]" + key + "[white]:" + " " + colorizeValue(value)
+		toks := mjson.Tokens(v, false)
+		color := tcell.ColorYellow
+		tag := "[yellow]"
+		if len(toks) == 1 {
+			switch toks[0].Kind {
+			case mjson.String:
+				color, tag = tcell.ColorGreen, "[green]"
+			case mjson.Bool:
+				color, tag = tcell.ColorFuchsia, "[fuchsia]"
+			case mjson.Null:
+				color, tag = tcell.ColorRed, "[red]"
+			case mjson.Helper:
+				color, tag = tcell.ColorOrange, "[orange]"
 			}
-			return "[cyan]" + key + "[white]" + rest
 		}
-		// Bare string in array
-		return colorizeValue(trimmed)
-	}
-
-	// Bare values in arrays (numbers, booleans, null)
-	return colorizeValue(trimmed)
-}
-
-func findColon(s string) int {
-	// Find the colon that separates key from value, skipping the key string
-	inString := false
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		if ch == '"' && (i == 0 || s[i-1] != '\\') {
-			inString = !inString
-		} else if ch == ':' && !inString {
-			return i
-		}
-	}
-	return -1
-}
-
-func colorizeValue(v string) string {
-	trailing := ""
-	core := v
-	if strings.HasSuffix(core, ",") {
-		trailing = ","
-		core = core[:len(core)-1]
-	}
-
-	switch {
-	case core == "null":
-		return "[red]null[white]" + trailing
-	case core == "true" || core == "false":
-		return "[magenta]" + core + "[white]" + trailing
-	case len(core) > 0 && core[0] == '"':
-		return "[green]" + core + "[white]" + trailing
-	case core == "{" || core == "}" || core == "[" || core == "[]" || core == "]":
-		return "[white]" + core + "[white]" + trailing
-	case len(core) > 0 && (core[0] >= '0' && core[0] <= '9' || core[0] == '-'):
-		return "[yellow]" + core + "[white]" + trailing
-	default:
-		return v
+		node := tview.NewTreeNode(k + tag + tview.Escape(mjson.Join(toks))).SetColor(color)
+		parent.AddChild(node)
 	}
 }

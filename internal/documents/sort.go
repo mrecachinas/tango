@@ -5,56 +5,63 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"tango/internal/state"
 )
+
+// SetSort applies a sort spec (nil clears it) and reloads from page one.
+func SetSort(spec bson.D) {
+	s := state.S
+	s.CurrentSort = spec
+	s.CurrentPage = 0
+	s.PageStarts = nil
+	s.SnapshotID = nil
+	LoadDocuments()
+}
 
 func PromptSort() {
 	s := state.S
 	s.SortForm.Clear(true)
 
-	initialOrder := 0
-	if s.CurrentSortOrder == -1 {
-		initialOrder = 1
+	field, initialOrder := "", 0
+	if len(s.CurrentSort) > 0 {
+		field = s.CurrentSort[0].Key
+		if v, ok := state.ToFloat64(s.CurrentSort[0].Value); ok && v < 0 {
+			initialOrder = 1
+		}
+	}
+	back := func() {
+		s.RootPages.SwitchToPage("main")
+		s.App.SetFocus(s.DocList)
+		state.RefreshPanelBorders()
 	}
 
 	s.SortForm.
-		AddInputField("Sort field", s.CurrentSortField, 30, nil, nil).
+		AddInputField("Sort field", field, 30, nil, nil).
 		AddDropDown("Order", []string{"Ascending", "Descending"}, initialOrder, nil).
 		AddButton("Sort", func() {
-			field := s.SortForm.GetFormItemByLabel("Sort field").(*tview.InputField).GetText()
-			field = strings.TrimSpace(field)
-			if field == "" {
-				s.RootPages.SwitchToPage("main")
-				s.App.SetFocus(s.DocList)
+			f := strings.TrimSpace(s.SortForm.GetFormItemByLabel("Sort field").(*tview.InputField).GetText())
+			back()
+			if f == "" {
 				return
 			}
 			_, option := s.SortForm.GetFormItemByLabel("Order").(*tview.DropDown).GetCurrentOption()
-			s.CurrentSortField = field
-			s.CurrentSortOrder = 1
+			order := 1
 			if option == "Descending" {
-				s.CurrentSortOrder = -1
+				order = -1
 			}
-			s.CurrentPage = 0
-			s.RootPages.SwitchToPage("main")
-			LoadDocuments()
+			SetSort(bson.D{{Key: f, Value: order}})
 		}).
 		AddButton("Clear", func() {
-			s.CurrentSortField = ""
-			s.CurrentSortOrder = 0
-			s.CurrentPage = 0
-			s.RootPages.SwitchToPage("main")
-			LoadDocuments()
+			back()
+			SetSort(nil)
 		}).
-		AddButton("Cancel", func() {
-			s.RootPages.SwitchToPage("main")
-			s.App.SetFocus(s.DocList)
-		})
+		AddButton("Cancel", back)
 
 	s.SortForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			s.RootPages.SwitchToPage("main")
-			s.App.SetFocus(s.DocList)
+			back()
 			return nil
 		}
 		return event

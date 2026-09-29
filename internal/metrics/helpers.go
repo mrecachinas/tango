@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"tango/internal/state"
@@ -52,28 +53,33 @@ func extractCachePercent(ss bson.M) float64 {
 	return 0
 }
 
+// ticketSections returns the read/write execution ticket stats:
+// queues.execution on MongoDB 7.0+/8.x, wiredTiger.concurrentTransactions before.
+func ticketSections(ss bson.M) []bson.M {
+	var ct bson.M
+	if q, ok := ss["queues"].(bson.M); ok {
+		ct, _ = q["execution"].(bson.M)
+	}
+	if ct == nil {
+		if wt, ok := ss["wiredTiger"].(bson.M); ok {
+			ct, _ = wt["concurrentTransactions"].(bson.M)
+		}
+	}
+	var out []bson.M
+	for _, k := range []string{"read", "write"} {
+		if sec, ok := ct[k].(bson.M); ok {
+			out = append(out, sec)
+		}
+	}
+	return out
+}
+
+// extractTicketsPct returns the percentage of execution tickets in use.
 func extractTicketsPct(ss bson.M) float64 {
-	if ss == nil {
-		return 0
-	}
-	wt, ok := ss["wiredTiger"].(bson.M)
-	if !ok {
-		return 0
-	}
-	ct, ok := wt["concurrentTransactions"].(bson.M)
-	if !ok {
-		return 0
-	}
 	var avail, total float64
-	if read, ok := ct["read"].(bson.M); ok {
-		a, _ := state.ToFloat64(read["available"])
-		t, _ := state.ToFloat64(read["totalTickets"])
-		avail += a
-		total += t
-	}
-	if write, ok := ct["write"].(bson.M); ok {
-		a, _ := state.ToFloat64(write["available"])
-		t, _ := state.ToFloat64(write["totalTickets"])
+	for _, sec := range ticketSections(ss) {
+		a, _ := state.ToFloat64(sec["available"])
+		t, _ := state.ToFloat64(sec["totalTickets"])
 		avail += a
 		total += t
 	}
@@ -83,14 +89,68 @@ func extractTicketsPct(ss bson.M) float64 {
 	return 0
 }
 
-func sumOpcounters(oc bson.M) int64 {
-	var total int64
-	for _, key := range []string{"insert", "query", "update", "delete", "getmore", "command"} {
-		if v, ok := state.ToFloat64(oc[key]); ok {
-			total += int64(v)
+// queueDepth returns the number of operations waiting for an execution
+// ticket, falling back to globalLock.currentQueue on old servers.
+func queueDepth(ss bson.M) float64 {
+	var n float64
+	found := false
+	for _, sec := range ticketSections(ss) {
+		if v, ok := state.ToFloat64(sec["queueLength"]); ok {
+			n += v
+			found = true
+			continue
+		}
+		// 8.x reports queue lengths per priority class.
+		for _, sub := range sec {
+			if m, ok := sub.(bson.M); ok {
+				if v, ok := state.ToFloat64(m["queueLength"]); ok {
+					n += v
+					found = true
+				}
+			}
 		}
 	}
-	return total
+	if found {
+		return n
+	}
+	if gl, ok := ss["globalLock"].(bson.M); ok {
+		if cq, ok := gl["currentQueue"].(bson.M); ok {
+			r, _ := state.ToFloat64(cq["readers"])
+			w, _ := state.ToFloat64(cq["writers"])
+			return r + w
+		}
+	}
+	return 0
+}
+
+func sumOpcounters(ss bson.M) (float64, bool) {
+	oc, ok := ss["opcounters"].(bson.M)
+	if !ok {
+		return 0, false
+	}
+	var total float64
+	for _, key := range []string{"insert", "query", "update", "delete", "getmore", "command"} {
+		if v, ok := state.ToFloat64(oc[key]); ok {
+			total += v
+		}
+	}
+	return total, true
+}
+
+func networkBytesIn(ss bson.M) (float64, bool) {
+	if net, ok := ss["network"].(bson.M); ok {
+		return state.ToFloat64(net["bytesIn"])
+	}
+	return 0, false
+}
+
+func escape(s string) string { return tview.Escape(s) }
+
+func truncate(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
 }
 
 func formatDuration(d time.Duration) string {
@@ -104,11 +164,6 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dh%dm", hours, mins)
 	}
 	return fmt.Sprintf("%dm", mins)
-}
-
-// FormatDuration is exported for use by other packages.
-func FormatDuration(d time.Duration) string {
-	return formatDuration(d)
 }
 
 func renderSparkline(data []float64) string {

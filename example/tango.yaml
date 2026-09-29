@@ -8,3 +8,8 @@ profiles:
     mongo_user: readonly
     mongo_password: secret
     mongo_db: myapp
+  atlas:
+    uri: mongodb+srv://cluster0.example.net/?retryWrites=true
+    mongo_user: admin
+    auth_source: admin
+    refresh_rate: 5
