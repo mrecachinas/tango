@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"github.com/rivo/tview"
 	flag "github.com/spf13/pflag"
+	"golang.org/x/term"
 
 	"tango/internal/config"
 	"tango/internal/db"
@@ -19,16 +19,24 @@ import (
 	"tango/internal/version"
 )
 
+func fatalf(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, "tango: "+format+"\n", args...)
+	os.Exit(1)
+}
+
 func main() {
 	var showVersion bool
 	flag.BoolVar(&showVersion, "version", false, "Print version and exit")
 
 	var cfg config.Config
-	flag.StringVar(&cfg.MongoURL, "mongo-host", "localhost", "")
-	flag.IntVar(&cfg.MongoPort, "mongo-port", 27017, "")
-	flag.StringVarP(&cfg.MongoDB, "mongo-db", "d", "", "")
-	flag.StringVarP(&cfg.MongoUser, "mongo-user", "u", "", "")
-	flag.StringVarP(&cfg.MongoPassword, "mongo-password", "p", "", "")
+	flag.StringVar(&cfg.URI, "uri", "", "MongoDB connection string (mongodb:// or mongodb+srv://); env TANGO_MONGO_URI")
+	flag.StringVar(&cfg.MongoURL, "mongo-host", "localhost", "MongoDB host (ignored with --uri)")
+	flag.IntVar(&cfg.MongoPort, "mongo-port", 27017, "MongoDB port (ignored with --uri)")
+	flag.StringVarP(&cfg.MongoDB, "mongo-db", "d", "", "Default database (also the default auth source)")
+	flag.StringVarP(&cfg.MongoUser, "mongo-user", "u", "", "Username")
+	flag.StringVarP(&cfg.MongoPassword, "mongo-password", "p", "", "Password (prefer TANGO_MONGO_PASSWORD or the interactive prompt; flags are visible in ps)")
+	flag.StringVar(&cfg.AuthSource, "auth-source", "", "Authentication database")
+	flag.Float64Var(&cfg.RefreshRate, "refresh-rate", 2, "Seconds between metrics refreshes")
 	var profileName string
 	flag.StringVar(&profileName, "profile", "", "Connection profile name from ~/.tango.yaml")
 	var timeoutSecs int
@@ -40,90 +48,91 @@ func main() {
 		os.Exit(0)
 	}
 
-	if cfg.MongoPassword == "" {
-		if envPass := os.Getenv("TANGO_MONGO_PASSWORD"); envPass != "" {
-			cfg.MongoPassword = envPass
-		}
-	}
-
+	// Precedence: command-line flag > environment > profile > default.
+	changed := flag.CommandLine.Changed
 	if profileName != "" {
 		profile, err := config.LoadProfile(profileName)
 		if err != nil {
-			log.Fatalf("Error loading profile: %s", err)
+			fatalf("loading profile: %s", err)
 		}
-		// Profile provides base values; CLI flags override them.
-		if !flag.CommandLine.Changed("mongo-host") && profile.MongoURL != "" {
-			cfg.MongoURL = profile.MongoURL
+		setStr := func(flagName string, dst *string, v string) {
+			if !changed(flagName) && v != "" {
+				*dst = v
+			}
 		}
-		if !flag.CommandLine.Changed("mongo-port") && profile.MongoPort != 0 {
+		setStr("uri", &cfg.URI, profile.URI)
+		setStr("mongo-host", &cfg.MongoURL, profile.MongoURL)
+		setStr("mongo-db", &cfg.MongoDB, profile.MongoDB)
+		setStr("mongo-user", &cfg.MongoUser, profile.MongoUser)
+		setStr("mongo-password", &cfg.MongoPassword, profile.MongoPassword)
+		setStr("auth-source", &cfg.AuthSource, profile.AuthSource)
+		if !changed("mongo-port") && profile.MongoPort != 0 {
 			cfg.MongoPort = profile.MongoPort
 		}
-		if !flag.CommandLine.Changed("mongo-db") && profile.MongoDB != "" {
-			cfg.MongoDB = profile.MongoDB
-		}
-		if !flag.CommandLine.Changed("mongo-user") && profile.MongoUser != "" {
-			cfg.MongoUser = profile.MongoUser
-		}
-		if !flag.CommandLine.Changed("mongo-password") && profile.MongoPassword != "" {
-			cfg.MongoPassword = profile.MongoPassword
-		}
-		if profile.RefreshRate != 0 {
+		if !changed("refresh-rate") && profile.RefreshRate != 0 {
 			cfg.RefreshRate = profile.RefreshRate
 		}
 	}
+	if v := os.Getenv("TANGO_MONGO_URI"); v != "" && !changed("uri") {
+		cfg.URI = v
+	}
+	if v := os.Getenv("TANGO_MONGO_PASSWORD"); v != "" && !changed("mongo-password") {
+		cfg.MongoPassword = v
+	}
+	if cfg.MongoUser != "" && cfg.MongoPassword == "" && term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Fprintf(os.Stderr, "Password for %s: ", cfg.MongoUser)
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			fatalf("reading password: %s", err)
+		}
+		cfg.MongoPassword = string(pw)
+	}
+	if timeoutSecs < 1 {
+		fatalf("--timeout must be at least 1 second")
+	}
+	refresh := time.Duration(cfg.RefreshRate * float64(time.Second))
+	if refresh < 500*time.Millisecond {
+		refresh = 500 * time.Millisecond
+	}
+	timeout := time.Duration(timeoutSecs) * time.Second
+
+	client, hostLabel, err := db.Connect(cfg, timeout)
+	if err != nil {
+		fatalf("%s", err)
+	}
+	privs, privErr := db.DetectPrivileges(client)
 
 	state.S = &state.AppState{
+		Client:          client,
 		GlobalCfg:       cfg,
-		QueryTimeout:    time.Duration(timeoutSecs) * time.Second,
+		HostLabel:       hostLabel,
+		QueryTimeout:    timeout,
+		RefreshInterval: refresh,
 		SelectedDocs:    make(map[int]bool),
 		QueryHistoryIdx: -1,
-		OpsHistory:      state.NewRollingBuffer(metrics.SparkWidth),
-		ConnHistory:     state.NewRollingBuffer(metrics.SparkWidth),
-		MemHistory:      state.NewRollingBuffer(metrics.SparkWidth),
-		PingHistory:     state.NewRollingBuffer(metrics.SparkWidth),
-		QueueHistory:    state.NewRollingBuffer(metrics.SparkWidth),
-		NetInHistory:    state.NewRollingBuffer(metrics.SparkWidth),
-		CursorsHistory:  state.NewRollingBuffer(metrics.SparkWidth),
-		FaultsHistory:   state.NewRollingBuffer(metrics.SparkWidth),
+		Privileges:      privs,
+		ReadOnly:        !privs.AnyWrite(),
+		NoKeyset:        map[state.Namespace]bool{},
 	}
-
+	s := state.S
 	state.LoadState()
 
-	ctx, cancel := state.NewCtx()
-	defer cancel()
-	state.S.Client = db.MongoConnect(cfg, ctx)
-	db.DetectReadOnly()
-
-	state.S.App = tview.NewApplication()
+	s.App = tview.NewApplication()
 	ui.BuildUI()
-	documents.LoadDatabases()
-	metrics.StartMetricsPoller()
-
-	// Restore last session
-	if state.S.LastDB != "" {
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			state.S.App.QueueUpdateDraw(func() {
-				documents.SelectDatabase(state.S.LastDB)
-				if state.S.LastCollection != "" {
-					go func() {
-						time.Sleep(500 * time.Millisecond)
-						state.S.App.QueueUpdateDraw(func() {
-							documents.SelectCollection(state.S.LastCollection)
-						})
-					}()
-				}
-			})
-		}()
+	if privErr != nil {
+		state.FlashError("Couldn't read privileges (" + privErr.Error() + "); write operations disabled")
 	}
+	documents.LoadDatabases(func() { documents.RestoreSession(s.LastDB, s.LastCollection) })
+	metrics.Start(refresh)
 
-	if err := state.S.App.Run(); err != nil {
-		fmt.Printf("Error running application: %s\n", err)
+	if err := s.App.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running application: %s\n", err)
 	}
 
 	state.SaveState()
 
 	disconnectCtx, disconnectCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer disconnectCancel()
-	db.MongoClose(state.S.Client, disconnectCtx)
+	_ = client.Disconnect(disconnectCtx)
 }

@@ -1,158 +1,165 @@
 package query
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
+
+	"tango/internal/mjson"
 )
 
-// ParseMongoQuery extracts collection, method, and raw args from
-// a query like db.users.find({name: "Alice"}).
-func parseMongoQuery(input string) (collection, method, argsStr string, err error) {
-	rest := input[3:] // strip "db."
+type call struct {
+	Name string
+	Args bson.A
+}
 
-	parenIdx := strings.Index(rest, "(")
-	if parenIdx == -1 {
-		return "", "", "", fmt.Errorf("missing method call — e.g. db.collection.find({...})")
+// shellQuery is a parsed db.<coll>.<method>(…)[.<cursorMethod>(…)…] call.
+type shellQuery struct {
+	Coll   string
+	Method string
+	Args   bson.A
+	Chain  []call
+}
+
+// parseShellQuery parses mongo-shell queries such as
+//
+//	db.users.find({age: {$gt: 30}}, {name: 1}).sort({age: -1}).limit(5)
+//	db.getCollection("my.coll").countDocuments({})
+func parseShellQuery(input string) (shellQuery, error) {
+	var q shellQuery
+	input = strings.TrimSuffix(strings.TrimSpace(input), ";")
+	if !strings.HasPrefix(input, "db.") {
+		return q, fmt.Errorf("queries must start with db. — e.g. db.collection.find({...})")
 	}
+	rest := input[3:]
 
-	prefix := rest[:parenIdx]
-	lastDot := strings.LastIndex(prefix, ".")
-	if lastDot == -1 {
-		return "", "", "", fmt.Errorf("missing collection — e.g. db.collection.find({...})")
-	}
-
-	collection = prefix[:lastDot]
-	method = prefix[lastDot+1:]
-
-	// Find matching closing paren (handle nested parens)
-	depth := 0
-	argsStart := parenIdx + 1
-	argsEnd := -1
-	for i := parenIdx; i < len(rest); i++ {
-		switch rest[i] {
-		case '(':
-			depth++
-		case ')':
-			depth--
-			if depth == 0 {
-				argsEnd = i
-			}
+	if strings.HasPrefix(rest, "getCollection(") {
+		open := len("getCollection")
+		end, err := matchParen(rest, open)
+		if err != nil {
+			return q, err
 		}
-		if argsEnd != -1 {
+		args, err := mjson.ParseArgs(rest[open+1 : end])
+		if err != nil {
+			return q, fmt.Errorf("getCollection(): %w", err)
+		}
+		name, ok := firstString(args)
+		if !ok {
+			return q, fmt.Errorf("getCollection() takes a collection name string")
+		}
+		q.Coll = name
+		rest = strings.TrimSpace(rest[end+1:])
+		if !strings.HasPrefix(rest, ".") {
+			return q, fmt.Errorf("missing method call — e.g. db.getCollection(\"c\").find({...})")
+		}
+		rest = rest[1:]
+	} else {
+		paren := strings.Index(rest, "(")
+		if paren == -1 {
+			return q, fmt.Errorf("missing method call — e.g. db.collection.find({...})")
+		}
+		lastDot := strings.LastIndex(rest[:paren], ".")
+		if lastDot <= 0 {
+			return q, fmt.Errorf("missing collection — e.g. db.collection.find({...})")
+		}
+		q.Coll = rest[:lastDot]
+		rest = rest[lastDot+1:]
+	}
+
+	var calls []call
+	for {
+		paren := strings.Index(rest, "(")
+		if paren == -1 {
+			return q, fmt.Errorf("missing '(' after %q", rest)
+		}
+		name := strings.TrimSpace(rest[:paren])
+		if name == "" || strings.ContainsAny(name, " .{}[]\"'") {
+			return q, fmt.Errorf("invalid method name %q", name)
+		}
+		end, err := matchParen(rest, paren)
+		if err != nil {
+			return q, err
+		}
+		args, err := mjson.ParseArgs(rest[paren+1 : end])
+		if err != nil {
+			return q, fmt.Errorf("%s(): %w", name, err)
+		}
+		calls = append(calls, call{Name: name, Args: args})
+		rest = strings.TrimSuffix(strings.TrimSpace(rest[end+1:]), ";")
+		if rest == "" {
 			break
 		}
+		if !strings.HasPrefix(rest, ".") {
+			return q, fmt.Errorf("unexpected text after %s(): %q", name, rest)
+		}
+		rest = rest[1:]
 	}
-	if argsEnd == -1 {
-		return "", "", "", fmt.Errorf("missing closing parenthesis")
-	}
-
-	argsStr = strings.TrimSpace(rest[argsStart:argsEnd])
-	return collection, method, argsStr, nil
+	q.Method, q.Args, q.Chain = calls[0].Name, calls[0].Args, calls[1:]
+	return q, nil
 }
 
-// relaxedJSONToStrict converts mongo-shell-style JSON (unquoted keys,
-// single-quoted strings, $operators) to strict JSON.
-func relaxedJSONToStrict(input string) string {
-	var buf strings.Builder
-	runes := []rune(input)
-	n := len(runes)
+func firstString(args bson.A) (string, bool) {
+	if len(args) != 1 {
+		return "", false
+	}
+	s, ok := args[0].(string)
+	return s, ok && s != ""
+}
 
-	for i := 0; i < n; i++ {
-		ch := runes[i]
-
+// matchParen returns the index of the ')' matching the '(' at s[open],
+// skipping string and regex literals.
+func matchParen(s string, open int) (int, error) {
+	depth := 0
+	prev := byte('(')
+	for i := open; i < len(s); i++ {
+		ch := s[i]
 		switch {
-		case ch == '"':
-			// Pass through double-quoted strings
-			buf.WriteRune(ch)
-			i++
-			for i < n && runes[i] != '"' {
-				if runes[i] == '\\' && i+1 < n {
-					buf.WriteRune(runes[i])
-					i++
-				}
-				buf.WriteRune(runes[i])
-				i++
-			}
-			if i < n {
-				buf.WriteRune(runes[i])
-			}
-
-		case ch == '\'':
-			// Single-quoted string → double-quoted
-			buf.WriteRune('"')
-			i++
-			for i < n && runes[i] != '\'' {
-				if runes[i] == '\\' && i+1 < n {
-					buf.WriteRune(runes[i])
-					i++
-					buf.WriteRune(runes[i])
-				} else if runes[i] == '"' {
-					buf.WriteRune('\\')
-					buf.WriteRune('"')
-				} else {
-					buf.WriteRune(runes[i])
-				}
-				i++
-			}
-			buf.WriteRune('"')
-
-		case isIdentStart(ch):
-			// Collect identifier
-			start := i
-			for i < n && isIdentChar(runes[i]) {
-				i++
-			}
-			word := string(runes[start:i])
-			i-- // back up; outer loop will advance
-
-			// Look ahead past whitespace for ':'
+		case ch == '"' || ch == '\'':
 			j := i + 1
-			for j < n && (runes[j] == ' ' || runes[j] == '\t') {
+			for j < len(s) && s[j] != ch {
+				if s[j] == '\\' {
+					j++
+				}
 				j++
 			}
-			if j < n && runes[j] == ':' {
-				// It's a key — quote it
-				buf.WriteRune('"')
-				buf.WriteString(word)
-				buf.WriteRune('"')
-			} else if word == "true" || word == "false" || word == "null" {
-				buf.WriteString(word)
-			} else {
-				// Bare identifier as value — quote it
-				buf.WriteRune('"')
-				buf.WriteString(word)
-				buf.WriteRune('"')
+			if j >= len(s) {
+				return -1, fmt.Errorf("unterminated string")
 			}
-
-		default:
-			buf.WriteRune(ch)
+			i = j
+		case ch == '/' && strings.IndexByte("(:[,", prev) >= 0 && i+1 < len(s) && s[i+1] != '/' && s[i+1] != '*':
+			j, inClass := i+1, false
+			for j < len(s) && (s[j] != '/' || inClass) {
+				switch s[j] {
+				case '\\':
+					j++
+				case '[':
+					inClass = true
+				case ']':
+					inClass = false
+				}
+				j++
+			}
+			if j >= len(s) {
+				return -1, fmt.Errorf("unterminated regular expression")
+			}
+			i = j
+		case ch == '(':
+			depth++
+		case ch == ')':
+			depth--
+			if depth == 0 {
+				return i, nil
+			}
+		}
+		if ch != ' ' && ch != '\t' && ch != '\n' {
+			prev = ch
 		}
 	}
-
-	return buf.String()
+	return -1, fmt.Errorf("missing closing parenthesis")
 }
 
-func isIdentStart(ch rune) bool {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || ch == '$'
-}
-
-func isIdentChar(ch rune) bool {
-	return isIdentStart(ch) || (ch >= '0' && ch <= '9') || ch == '.'
-}
-
-// parseFilter converts a relaxed or strict JSON string into bson.M.
-func parseFilter(s string) (bson.M, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return bson.M{}, nil
-	}
-	strict := relaxedJSONToStrict(s)
-	var filter bson.M
-	if err := json.Unmarshal([]byte(strict), &filter); err != nil {
-		return nil, err
-	}
-	return filter, nil
+// parseFilter parses a filter in shell syntax or Extended JSON.
+func parseFilter(s string) (bson.D, error) {
+	return mjson.ParseDoc(s)
 }

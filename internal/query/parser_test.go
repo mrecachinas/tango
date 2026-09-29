@@ -1,292 +1,117 @@
 package query
 
 import (
-	"encoding/json"
 	"reflect"
 	"testing"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"tango/internal/state"
 )
 
-func TestRelaxedJSONToStrict(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  string
+func TestParseShellQuery(t *testing.T) {
+	oid, _ := primitive.ObjectIDFromHex("65f000000000000000000000")
+	cases := []struct {
+		in    string
+		coll  string
+		meth  string
+		args  bson.A
+		chain []call
 	}{
-		{
-			name:  "unquoted keys",
-			input: `{name: "test"}`,
-			want:  `{"name": "test"}`,
-		},
-		{
-			name:  "dollar operators",
-			input: `{age: {$gt: 25}}`,
-			want:  `{"age": {"$gt": 25}}`,
-		},
-		{
-			name:  "single-quoted strings",
-			input: `{name: 'test'}`,
-			want:  `{"name": "test"}`,
-		},
-		{
-			name:  "boolean and null preserved",
-			input: `{active: true, data: null}`,
-			want:  `{"active": true, "data": null}`,
-		},
-		{
-			name:  "false preserved",
-			input: `{deleted: false}`,
-			want:  `{"deleted": false}`,
-		},
-		{
-			name:  "numbers preserved",
-			input: `{age: 42, score: 3.14}`,
-			want:  `{"age": 42, "score": 3.14}`,
-		},
-		{
-			name:  "nested objects",
-			input: `{a: {b: {c: 1}}}`,
-			want:  `{"a": {"b": {"c": 1}}}`,
-		},
-		{
-			name:  "arrays",
-			input: `{tags: ["a", "b"]}`,
-			want:  `{"tags": ["a", "b"]}`,
-		},
-		{
-			name:  "already strict JSON passes through",
-			input: `{"name": "test", "age": 42}`,
-			want:  `{"name": "test", "age": 42}`,
-		},
-		{
-			name:  "empty object",
-			input: `{}`,
-			want:  `{}`,
-		},
-		{
-			name:  "mixed quoted and unquoted keys",
-			input: `{"name": "Alice", age: 30}`,
-			want:  `{"name": "Alice", "age": 30}`,
-		},
-		{
-			name:  "dotted keys",
-			input: `{user.name: "test"}`,
-			want:  `{"user.name": "test"}`,
-		},
-		{
-			name:  "dollar operator in key",
-			input: `{$set: {name: "new"}}`,
-			want:  `{"$set": {"name": "new"}}`,
-		},
-		{
-			name:  "single-quoted value with embedded double quote",
-			input: `{msg: 'say "hi"'}`,
-			want:  `{"msg": "say \"hi\""}`,
-		},
-		{
-			name:  "escaped char in double-quoted string",
-			input: `{name: "te\"st"}`,
-			want:  `{"name": "te\"st"}`,
-		},
-		{
-			name:  "multiple dollar operators",
-			input: `{$and: [{age: {$gte: 18}}, {age: {$lte: 65}}]}`,
-			want:  `{"$and": [{"age": {"$gte": 18}}, {"age": {"$lte": 65}}]}`,
-		},
+		{`db.users.find({})`, "users", "find", bson.A{bson.D{}}, nil},
+		{`db.users.find()`, "users", "find", bson.A{}, nil},
+		{`db.users.find({name: "a)b"})`, "users", "find", bson.A{bson.D{{Key: "name", Value: "a)b"}}}, nil},
+		{`db.users.find({name: /a\)(b/})`, "users", "find", bson.A{bson.D{{Key: "name", Value: primitive.Regex{Pattern: `a\)(b`}}}}, nil},
+		{`db.system.profile.find()`, "system.profile", "find", bson.A{}, nil},
+		{`db.getCollection("my.coll").countDocuments({a: 1});`, "my.coll", "countDocuments", bson.A{bson.D{{Key: "a", Value: int32(1)}}}, nil},
+		{`db.o.find({ref: ObjectId("65f000000000000000000000")}, {x: 1}).sort({b: 1, a: -1}).limit(5).skip(10)`,
+			"o", "find",
+			bson.A{bson.D{{Key: "ref", Value: oid}}, bson.D{{Key: "x", Value: int32(1)}}},
+			[]call{
+				{"sort", bson.A{bson.D{{Key: "b", Value: int32(1)}, {Key: "a", Value: int32(-1)}}}},
+				{"limit", bson.A{int32(5)}},
+				{"skip", bson.A{int32(10)}},
+			}},
+		{`db.c.distinct("tags", {x: {$in: [1, 2]}})`, "c", "distinct", bson.A{"tags", bson.D{{Key: "x", Value: bson.D{{Key: "$in", Value: bson.A{int32(1), int32(2)}}}}}}, nil},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := relaxedJSONToStrict(tt.input)
-			if got != tt.want {
-				t.Errorf("relaxedJSONToStrict(%q)\n  got:  %s\n  want: %s", tt.input, got, tt.want)
-			}
-			// Verify the output is valid JSON
-			var js json.RawMessage
-			if err := json.Unmarshal([]byte(got), &js); err != nil {
-				t.Errorf("output is not valid JSON: %v", err)
-			}
-		})
+	for _, c := range cases {
+		q, err := parseShellQuery(c.in)
+		if err != nil {
+			t.Errorf("%s: %v", c.in, err)
+			continue
+		}
+		if q.Coll != c.coll || q.Method != c.meth {
+			t.Errorf("%s: coll=%q method=%q", c.in, q.Coll, q.Method)
+		}
+		if !reflect.DeepEqual(q.Args, c.args) {
+			t.Errorf("%s: args=%#v want %#v", c.in, q.Args, c.args)
+		}
+		if len(q.Chain) != len(c.chain) || (len(c.chain) > 0 && !reflect.DeepEqual(q.Chain, c.chain)) {
+			t.Errorf("%s: chain=%#v want %#v", c.in, q.Chain, c.chain)
+		}
 	}
 }
 
-func TestParseMongoQuery(t *testing.T) {
-	tests := []struct {
-		name       string
-		input      string
-		wantColl   string
-		wantMethod string
-		wantArgs   string
-		wantErr    bool
-	}{
-		{
-			name:       "basic find",
-			input:      `db.users.find({name: "test"})`,
-			wantColl:   "users",
-			wantMethod: "find",
-			wantArgs:   `{name: "test"}`,
-		},
-		{
-			name:       "findOne",
-			input:      `db.orders.findOne({})`,
-			wantColl:   "orders",
-			wantMethod: "findOne",
-			wantArgs:   `{}`,
-		},
-		{
-			name:       "count with empty parens",
-			input:      `db.logs.count()`,
-			wantColl:   "logs",
-			wantMethod: "count",
-			wantArgs:   "",
-		},
-		{
-			name:       "aggregate",
-			input:      `db.users.aggregate([{$match: {}}])`,
-			wantColl:   "users",
-			wantMethod: "aggregate",
-			wantArgs:   `[{$match: {}}]`,
-		},
-		{
-			name:       "nested parens in string args",
-			input:      `db.users.find({name: "test()"})`,
-			wantColl:   "users",
-			wantMethod: "find",
-			wantArgs:   `{name: "test()"}`,
-		},
-		{
-			name:       "empty args",
-			input:      `db.users.find()`,
-			wantColl:   "users",
-			wantMethod: "find",
-			wantArgs:   "",
-		},
-		{
-			name:    "missing method - no parens",
-			input:   `db.users`,
-			wantErr: true,
-		},
-		{
-			name:    "missing collection",
-			input:   `db.find()`,
-			wantErr: true,
-		},
-		{
-			name:       "args with whitespace",
-			input:      `db.users.find(  {name: "test"}  )`,
-			wantColl:   "users",
-			wantMethod: "find",
-			wantArgs:   `{name: "test"}`,
-		},
-		{
-			name:       "insertOne",
-			input:      `db.items.insertOne({x: 1})`,
-			wantColl:   "items",
-			wantMethod: "insertOne",
-			wantArgs:   `{x: 1}`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			coll, method, args, err := parseMongoQuery(tt.input)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error, got coll=%q method=%q args=%q", coll, method, args)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if coll != tt.wantColl {
-				t.Errorf("collection: got %q, want %q", coll, tt.wantColl)
-			}
-			if method != tt.wantMethod {
-				t.Errorf("method: got %q, want %q", method, tt.wantMethod)
-			}
-			if args != tt.wantArgs {
-				t.Errorf("args: got %q, want %q", args, tt.wantArgs)
-			}
-		})
+func TestParseShellQueryErrors(t *testing.T) {
+	for _, in := range []string{
+		`db.find()`,
+		`db.users`,
+		`db.users.find({a: 1}`,
+		`db.users.find({a: "x})`,
+		`db.users.find({}) junk`,
+		`db.users.find({a: Foo()})`,
+		`db.getCollection().find()`,
+	} {
+		if _, err := parseShellQuery(in); err == nil {
+			t.Errorf("%s: expected error", in)
+		}
 	}
 }
 
 func TestParseFilter(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    bson.M
-		wantErr bool
-	}{
-		{
-			name:  "valid strict JSON filter",
-			input: `{"name": "test"}`,
-			want:  bson.M{"name": "test"},
-		},
-		{
-			name:  "empty string returns empty bson.M",
-			input: "",
-			want:  bson.M{},
-		},
-		{
-			name:  "whitespace only returns empty bson.M",
-			input: "   ",
-			want:  bson.M{},
-		},
-		{
-			name:  "relaxed JSON with unquoted keys",
-			input: `{name: "test"}`,
-			want:  bson.M{"name": "test"},
-		},
-		{
-			name:  "numeric values",
-			input: `{age: 42}`,
-			want:  bson.M{"age": float64(42)},
-		},
-		{
-			name:  "boolean value",
-			input: `{active: true}`,
-			want:  bson.M{"active": true},
-		},
-		{
-			name:  "null value",
-			input: `{data: null}`,
-			want:  bson.M{"data": nil},
-		},
-		{
-			name:  "empty object",
-			input: `{}`,
-			want:  bson.M{},
-		},
-		{
-			name:    "invalid JSON returns error",
-			input:   `{not valid`,
-			wantErr: true,
-		},
-		{
-			name:  "bare word value gets quoted",
-			input: `{name: test}`,
-			want:  bson.M{"name": "test"},
-		},
+	f, err := parseFilter(`{_id: {$in: [1, 5]}, name: 'x'}`)
+	if err != nil {
+		t.Fatal(err)
 	}
+	want := bson.D{
+		{Key: "_id", Value: bson.D{{Key: "$in", Value: bson.A{int32(1), int32(5)}}}},
+		{Key: "name", Value: "x"},
+	}
+	if !reflect.DeepEqual(f, want) {
+		t.Errorf("got %#v", f)
+	}
+	if f, err := parseFilter("  "); err != nil || len(f) != 0 {
+		t.Errorf("empty filter: %#v %v", f, err)
+	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseFilter(tt.input)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error, got %v", got)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseFilter(%q)\n  got:  %v\n  want: %v", tt.input, got, tt.want)
-			}
-		})
+func TestOutputTarget(t *testing.T) {
+	cases := []struct {
+		stage bson.D
+		want  string
+		ok    bool
+	}{
+		{bson.D{{Key: "$out", Value: "c"}}, "db.c", true},
+		{bson.D{{Key: "$out", Value: bson.D{{Key: "db", Value: "o"}, {Key: "coll", Value: "c"}}}}, "o.c", true},
+		{bson.D{{Key: "$merge", Value: bson.D{{Key: "into", Value: "m"}}}}, "db.m", true},
+		{bson.D{{Key: "$match", Value: bson.D{}}}, "", false},
+	}
+	for _, c := range cases {
+		ns, ok := outputTarget([]bson.D{c.stage}, "db")
+		if ok != c.ok || (ok && ns.String() != c.want) {
+			t.Errorf("%v: got %v %v", c.stage, ns, ok)
+		}
+	}
+}
+
+func TestAutocompleteEscapesNames(t *testing.T) {
+	state.S = &state.AppState{AllCollItems: []state.ListEntry{{Name: "we[ird]"}}}
+	got := GetAutocompleteSuggestions("db.we")
+	if len(got) != 1 || got[0] != "db.we[ird[]." {
+		t.Fatalf("suggestions = %q", got)
+	}
+	if raw := SuggestionText(got[0]); raw != "db.we[ird]." {
+		t.Errorf("raw = %q", raw)
 	}
 }

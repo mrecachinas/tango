@@ -11,12 +11,14 @@ import (
 )
 
 type Config struct {
+	URI           string  `json:"uri" yaml:"uri"`
 	MongoURL      string  `json:"mongo_url" yaml:"mongo_url"`
 	MongoPort     int     `json:"mongo_port" yaml:"mongo_port"`
 	MongoUser     string  `json:"mongo_user" yaml:"mongo_user"`
 	MongoPassword string  `json:"mongo_password" yaml:"mongo_password"`
 	MongoDB       string  `json:"mongo_db" yaml:"mongo_db"`
-	RefreshRate   float64 `json:"refresh_rate" yaml:"refresh_rate"`
+	AuthSource    string  `json:"auth_source" yaml:"auth_source"`
+	RefreshRate   float64 `json:"refresh_rate" yaml:"refresh_rate"` // seconds between metrics polls
 }
 
 type ProfileConfig struct {

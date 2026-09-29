@@ -1,56 +1,38 @@
 package documents
 
 import (
+	"context"
 	"fmt"
-	"strings"
+
+	"github.com/rivo/tview"
 
 	"tango/internal/state"
 )
 
 func DropCollectionConfirm() {
-	if !state.CheckWriteAccess() {
-		return
-	}
 	s := state.S
-	idx := s.CollList.GetCurrentItem()
-	if idx < 0 || idx >= s.CollList.GetItemCount() {
+	name := state.GetSelectedCollName()
+	if s.CurrentDB == "" || name == "" {
 		return
 	}
-	name, _ := s.CollList.GetItemText(idx)
-	if i := strings.Index(name, " [gray]"); i != -1 {
-		name = name[:i]
+	ns := state.Namespace{DB: s.CurrentDB, Coll: name}
+	if !state.CheckWrite(state.ActDropCollection, ns) {
+		return
 	}
-	s.DropModal.ClearButtons()
-	s.DropModal.
-		SetText(fmt.Sprintf("Drop collection '%s'? This cannot be undone!", name)).
-		AddButtons([]string{"Drop", "Cancel"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			if buttonLabel == "Drop" {
-				dropCollection(name)
+	confirm(s.DropModal, "drop-confirm", fmt.Sprintf("Drop collection '%s'? This cannot be undone!", ns), "Drop", s.CollList, func() {
+		coll := s.Client.Database(ns.DB).Collection(ns.Coll)
+		state.Async("Dropping collection", func(ctx context.Context) func() {
+			err := coll.Drop(ctx)
+			return func() {
+				if err != nil {
+					state.FlashError("Drop failed: " + err.Error())
+					return
+				}
+				state.FlashStatus(fmt.Sprintf(" [green]Collection '%s' dropped", tview.Escape(ns.String())))
+				if s.CurrentDB == ns.DB {
+					SelectDatabase(ns.DB, nil)
+				}
 			}
-			s.RootPages.HidePage("drop-confirm")
-			s.RootPages.SwitchToPage("main")
-			s.App.SetFocus(s.CollList)
 		})
-	s.RootPages.ShowPage("drop-confirm")
-	s.App.SetFocus(s.DropModal)
-}
-
-func dropCollection(name string) {
-	if !state.CheckWriteAccess() {
-		return
-	}
-	s := state.S
-	state.ShowLoading("Dropping collection")
-	defer state.DoneLoading()
-	ctx, cancel := state.NewCtx()
-	defer cancel()
-	err := s.Client.Database(s.CurrentDB).Collection(name).Drop(ctx)
-	if err != nil {
-		s.StatusBar.SetText(" [red]Drop failed: " + err.Error())
-		return
-	}
-	s.StatusBar.SetText(fmt.Sprintf(" [green]Collection '%s' dropped successfully", name))
-	state.ClearDocPanel()
-	SelectDatabase(s.CurrentDB)
+	})
 }

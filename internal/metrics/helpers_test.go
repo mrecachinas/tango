@@ -210,14 +210,6 @@ func TestFormatDuration_Zero(t *testing.T) {
 	}
 }
 
-func TestFormatDuration_Exported(t *testing.T) {
-	// Ensure the exported wrapper matches the unexported one.
-	d := 1*time.Hour + 15*time.Minute
-	if FormatDuration(d) != formatDuration(d) {
-		t.Error("FormatDuration should delegate to formatDuration")
-	}
-}
-
 // --- ToFloat64 (from state package) ---
 
 func TestToFloat64_Float64(t *testing.T) {

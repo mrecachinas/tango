@@ -19,61 +19,67 @@ func setupHelp() {
 	if s.ReadOnly {
 		helpText = "[red]⊘ READ-ONLY MODE — write operations disabled[white]\n\n"
 	}
-	helpText += `[cyan]━━━ Global ━━━[white]
+	helpText += `[aqua]━━━ Global ━━━[white]
   Tab/Shift+Tab   Switch panels
-  /               Focus query bar
+  /               Focus query bar (in lists: filter)
+  :               Command mode
   r               Refresh current view
   R               Full refresh (reload everything)
   W               Toggle wide mode (full-width documents)
-  S               Server stats
+  S               Server stats (auto-refreshing)
+  L               Toggle live mode (newest first, auto-refresh)
   ?               This help
   q               Quit
 
-[cyan]━━━ Query Bar ━━━[white]
-  Enter           Execute query
-  Tab             Accept autocomplete
-  Esc             Back to panels
+[aqua]━━━ Query Bar ━━━[white]
+  {field: value}                      Filter the current collection
+  db.c.find({..}, {proj}).sort({..}).limit(n).skip(n)
+  db.c.findOne({..})  db.c.countDocuments({..})  db.c.distinct("f", {..})
+  db.c.aggregate([..])                Results capped at 10,000; $out/$merge supported
+  Shell helpers: ObjectId("…") ISODate("…") NumberLong(…) NumberDecimal("…")
+                 UUID("…") /regex/i Timestamp(t, i) MinKey MaxKey
+  Enter / Tab / ↑↓                    Execute / autocomplete / history
+  Esc                                 Back to panels
 
-[cyan]━━━ Databases ━━━[white]
-  Enter           Select database
-  Type letters    Filter list
-  Esc             Clear filter
+[aqua]━━━ Commands ━━━[white]
+  :use <db>  :coll <name>  :dbs  :colls   Navigate
+  :sort f1 -f2           Sort (prefix - for descending; no fields clears)
+  :limit <n>             Page size
+  :export json|csv [all] [path]   Export selection/page, or all matching docs
+  :watch [interval]      Live mode        :stats   Server stats
+  :killop <opid>         Kill an operation (opids listed in stats)
+  :indexes  :refresh  :refresh!
 
-[cyan]━━━ Collections ━━━[white]
-  Enter           Select collection
-  I               View indexes
-  D               Drop collection
-  Type letters    Filter list
+[aqua]━━━ Databases / Collections ━━━[white]
+  Enter           Select
+  / or type       Filter list (all keys go to the filter until Esc/Enter)
   Esc             Clear filter / go back
+  I               View indexes (collections)
+  D               Drop collection
 
-[cyan]━━━ Documents ━━━[white]
+[aqua]━━━ Documents ━━━[white]
   Enter           Expand document
-  Space           Toggle selection
-  a               Select all
-  A               Deselect all
+  Space           Toggle selection      a / A   Select all / none
   n / p           Next / previous page
   d               Delete document (or selected)
-  i               Insert new document
-  x               Export as JSON (selected or all)
-  C               Export as CSV (selected or all)
+  e               Edit in $EDITOR       i       Insert new document
+  x / C           Export JSON / CSV (selected or current page)
   s               Sort documents
-  L               Toggle live mode (auto-refresh)
 
-[cyan]━━━ Document Detail ━━━[white]
+[aqua]━━━ Document Detail ━━━[white]
   t               Toggle JSON / tree view
-  c               Copy to clipboard
-  e               Edit in $EDITOR
-  i               Insert new document
+  c               Copy to clipboard (shell syntax)
+  e               Edit in $EDITOR (shell syntax; types are preserved)
   /               Search in document
-  Esc             Back to list
+  Esc             Back
 
-[cyan]━━━ Indexes ━━━[white]
+[aqua]━━━ Indexes ━━━[white]
   Enter           View index details
   X               Drop index
   Esc             Back
 
-[cyan]━━━ Server Stats ━━━[white]
-  r               Refresh
+[aqua]━━━ Server Stats ━━━[white]
+  r               Refresh (including profiler across all databases)
   Esc             Back`
 	s.HelpView.SetText(helpText)
 }

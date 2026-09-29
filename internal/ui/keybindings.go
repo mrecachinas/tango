@@ -5,66 +5,70 @@ import (
 	"github.com/rivo/tview"
 
 	"tango/internal/documents"
-	"tango/internal/query"
 	"tango/internal/state"
 )
+
+func trimLastRune(s string) string {
+	r := []rune(s)
+	if len(r) == 0 {
+		return s
+	}
+	return string(r[:len(r)-1])
+}
+
+// listFilterCapture implements type-to-filter for a list panel. "/" starts
+// filtering explicitly; typing any other character starts it implicitly.
+// While filtering, every printable key goes to the filter (including keys
+// like q or W that are otherwise global shortcuts).
+func listFilterCapture(text *string, active *bool, render func()) func(*tcell.EventKey) *tcell.EventKey {
+	return func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			if *text != "" {
+				*text = trimLastRune(*text)
+				render()
+				return nil
+			}
+			if *active {
+				*active = false
+				render()
+				return nil
+			}
+		case tcell.KeyEscape:
+			if *active || *text != "" {
+				*text, *active = "", false
+				render()
+				return nil
+			}
+		case tcell.KeyEnter:
+			*active = false
+		case tcell.KeyRune:
+			r := event.Rune()
+			if r == '/' && !*active {
+				*active = true
+				render()
+				return nil
+			}
+			if r != ' ' || *active {
+				*text += string(r)
+				*active = true
+				render()
+				return nil
+			}
+		}
+		return event
+	}
+}
 
 func setupKeybindings() {
 	s := state.S
 
-	// ── Database list ──
-	s.DbList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
-			if len(s.DbFilterText) > 0 {
-				s.DbFilterText = s.DbFilterText[:len(s.DbFilterText)-1]
-				query.FilterDBList()
-				return nil
-			}
-		}
-		if event.Key() == tcell.KeyEscape {
-			if s.DbFilterText != "" {
-				s.DbFilterText = ""
-				query.FilterDBList()
-				return nil
-			}
-		}
-		r := event.Rune()
-		if r != 0 && r != ' ' && event.Key() == tcell.KeyRune {
-			s.DbFilterText += string(r)
-			query.FilterDBList()
-			return nil
-		}
-		return event
-	})
-
-	// ── Collection list ──
-	s.CollList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
-			if len(s.CollFilterText) > 0 {
-				s.CollFilterText = s.CollFilterText[:len(s.CollFilterText)-1]
-				query.FilterCollList()
-				return nil
-			}
-		}
-		if event.Key() == tcell.KeyEscape {
-			if s.CollFilterText != "" {
-				s.CollFilterText = ""
-				query.FilterCollList()
-				return nil
-			}
-		}
-		r := event.Rune()
-		if r != 0 && r != ' ' && event.Key() == tcell.KeyRune {
-			s.CollFilterText += string(r)
-			query.FilterCollList()
-			return nil
-		}
-		return event
-	})
+	s.DbList.SetInputCapture(listFilterCapture(&s.DbFilterText, &s.DbFilterActive, documents.RenderDBList))
+	s.CollList.SetInputCapture(listFilterCapture(&s.CollFilterText, &s.CollFilterActive, documents.RenderCollList))
 
 	// ── Document list ──
 	s.DocList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Rune() == ' ' {
+		if event.Key() == tcell.KeyRune && event.Rune() == ' ' {
 			idx := s.DocList.GetCurrentItem()
 			if idx >= 0 && idx < len(s.CurrentDocs) {
 				documents.ToggleSelection(idx)
@@ -87,25 +91,22 @@ func setupKeybindings() {
 			documents.CollapseDocument()
 			return nil
 		}
-		if event.Rune() == 'e' {
-			if !s.ReadOnly {
-				documents.EditDocument()
-			}
-			return nil
+		if event.Key() != tcell.KeyRune {
+			return event
 		}
-		if event.Rune() == 'c' {
+		switch event.Rune() {
+		case 'e':
+			documents.EditDocument()
+		case 'c':
 			documents.CopyToClipboard()
-			return nil
-		}
-		if event.Rune() == 't' {
+		case 't':
 			documents.ToggleToTree()
-			return nil
-		}
-		if event.Rune() == '/' {
+		case '/':
 			documents.StartDocSearch()
-			return nil
+		default:
+			return event
 		}
-		return event
+		return nil
 	})
 
 	// ── Document tree view ──
@@ -114,21 +115,20 @@ func setupKeybindings() {
 			documents.CollapseDocument()
 			return nil
 		}
-		if event.Rune() == 'e' {
-			if !s.ReadOnly {
-				documents.EditDocument()
-			}
-			return nil
+		if event.Key() != tcell.KeyRune {
+			return event
 		}
-		if event.Rune() == 'c' {
+		switch event.Rune() {
+		case 'e':
+			documents.EditDocument()
+		case 'c':
 			documents.CopyToClipboard()
-			return nil
-		}
-		if event.Rune() == 't' {
+		case 't':
 			documents.ToggleToDetail()
-			return nil
+		default:
+			return event
 		}
-		return event
+		return nil
 	})
 	s.DocTree.SetSelectedFunc(func(node *tview.TreeNode) {
 		node.SetExpanded(!node.IsExpanded())
@@ -142,8 +142,8 @@ func setupKeybindings() {
 			state.RefreshPanelBorders()
 			return nil
 		}
-		if event.Rune() == 'r' {
-			documents.ShowStats()
+		if event.Key() == tcell.KeyRune && event.Rune() == 'r' {
+			documents.RefreshStats(true)
 			return nil
 		}
 		return event
@@ -153,6 +153,7 @@ func setupKeybindings() {
 	s.HelpView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || event.Rune() == '?' {
 			s.RootPages.SwitchToPage("main")
+			state.RefreshPanelBorders()
 			return nil
 		}
 		return event
@@ -160,13 +161,16 @@ func setupKeybindings() {
 
 	// ── Global key bindings ──
 	s.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// Modals, help, and the sort form handle their own keys; so does any
+		// focused text input (query bar, search bar).
+		if front, _ := s.RootPages.GetFrontPage(); front != "main" {
+			return event
+		}
 		focused := s.App.GetFocus()
-		if focused == s.SearchBar || focused == s.DocSearchBar {
+		if _, ok := focused.(*tview.InputField); ok {
 			return event
 		}
-		if focused == s.DocDetail {
-			return event
-		}
+		filtering := (focused == s.DbList && s.DbFilterActive) || (focused == s.CollList && s.CollFilterActive)
 
 		switch event.Key() {
 		case tcell.KeyTab:
@@ -175,18 +179,19 @@ func setupKeybindings() {
 		case tcell.KeyBacktab:
 			state.CycleFocus(false)
 			return nil
+		case tcell.KeyRune:
+		default:
+			return event
+		}
+		if filtering {
+			return event
 		}
 
 		// Global commands that work from any panel
 		switch event.Rune() {
 		case '?':
-			name, _ := s.RootPages.GetFrontPage()
-			if name == "help" {
-				s.RootPages.SwitchToPage("main")
-			} else {
-				s.RootPages.SwitchToPage("help")
-				s.App.SetFocus(s.HelpView)
-			}
+			s.RootPages.SwitchToPage("help")
+			s.App.SetFocus(s.HelpView)
 			return nil
 		case ':':
 			s.SearchBar.SetText(":")
@@ -202,111 +207,44 @@ func setupKeybindings() {
 			documents.ShowStats()
 			return nil
 		case 'L':
-			if state.S.LiveMode {
+			if s.LiveMode {
 				documents.StopLiveMode()
 			} else {
 				documents.StartLiveMode()
 			}
 			return nil
+		case 'i':
+			if focused == s.DocList || focused == s.DocDetail || focused == s.DocTree {
+				documents.InsertDocument()
+				return nil
+			}
 		}
 
-		// Collection list: pass through for filtering except specific commands
-		if focused == s.CollList {
+		switch focused {
+		case s.DocDetail, s.DocTree, s.DbList:
+			return event
+		case s.CollList:
 			switch event.Rune() {
 			case 'I':
-				collName := state.GetSelectedCollName()
-				if s.CurrentDB != "" && collName != "" {
-					s.CurrentColl = collName
-					documents.ShowIndexes()
-					return nil
+				if collName := state.GetSelectedCollName(); s.CurrentDB != "" && collName != "" {
+					documents.ShowIndexesFor(state.Namespace{DB: s.CurrentDB, Coll: collName})
 				}
+				return nil
 			case 'D':
-				if s.ReadOnly {
-					return nil
-				}
-				if s.CollList.GetItemCount() > 0 {
-					documents.DropCollectionConfirm()
-					return nil
-				}
+				documents.DropCollectionConfirm()
+				return nil
 			}
 			return event
-		}
-		if focused == s.DbList {
-			return event
+		case s.IndexList:
+			if event.Rune() == 'X' {
+				documents.DropIndexConfirm()
+				return nil
+			}
 		}
 
 		switch event.Rune() {
 		case '/':
 			s.App.SetFocus(s.SearchBar)
-			return nil
-		case 'd':
-			if s.ReadOnly {
-				return nil
-			}
-			if s.App.GetFocus() == s.DocList && len(s.CurrentDocs) > 0 {
-				documents.DeleteDocumentConfirm()
-			}
-			return nil
-		case 'x':
-			if s.App.GetFocus() == s.DocList && len(s.CurrentDocs) > 0 {
-				documents.ExportJSON()
-			}
-			return nil
-		case 'C':
-			if s.App.GetFocus() == s.DocList && len(s.CurrentDocs) > 0 {
-				documents.ExportCSV()
-			}
-			return nil
-		case 'i':
-			if s.ReadOnly {
-				return nil
-			}
-			if s.CurrentDB != "" && s.CurrentColl != "" {
-				documents.InsertDocument()
-			}
-			return nil
-		case 's':
-			if s.App.GetFocus() == s.DocList && s.CurrentDB != "" && s.CurrentColl != "" {
-				documents.PromptSort()
-			}
-			return nil
-		case 'a':
-			if s.App.GetFocus() == s.DocList {
-				for i := 0; i < len(s.CurrentDocs); i++ {
-					s.SelectedDocs[i] = true
-				}
-				documents.RefreshDocListSelection()
-			}
-			return nil
-		case 'A':
-			if s.App.GetFocus() == s.DocList {
-				documents.ClearSelection()
-				documents.RefreshDocListSelection()
-			}
-			return nil
-		case 'X':
-			if s.ReadOnly {
-				return nil
-			}
-			if s.App.GetFocus() == s.IndexList && len(s.CurrentIndexes) > 0 {
-				documents.DropIndexConfirm()
-			}
-			return nil
-		case 'n':
-			if s.LiveMode {
-				return nil
-			}
-			if s.CurrentColl != "" {
-				documents.NextPage()
-			}
-			return nil
-		case 'p':
-			if s.LiveMode {
-				return nil
-			}
-			if s.CurrentColl != "" {
-				documents.PrevPage()
-			}
 			return nil
 		case 'r':
 			if focused != s.StatsView {
@@ -318,6 +256,40 @@ func setupKeybindings() {
 			return nil
 		}
 
-		return event
+		if focused != s.DocList {
+			return event
+		}
+		switch event.Rune() {
+		case 'd':
+			if len(s.CurrentDocs) > 0 {
+				documents.DeleteDocumentConfirm()
+			}
+		case 'e':
+			documents.EditDocument()
+		case 'x':
+			if len(s.CurrentDocs) > 0 {
+				documents.ExportJSON()
+			}
+		case 'C':
+			if len(s.CurrentDocs) > 0 {
+				documents.ExportCSV()
+			}
+		case 's':
+			if s.CurrentDB != "" && s.CurrentColl != "" && s.ResultLabel == "" {
+				documents.PromptSort()
+			}
+		case 'a':
+			documents.SelectAll()
+		case 'A':
+			documents.ClearSelection()
+			documents.RefreshDocListSelection()
+		case 'n':
+			documents.NextPage()
+		case 'p':
+			documents.PrevPage()
+		default:
+			return event
+		}
+		return nil
 	})
 }

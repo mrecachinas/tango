@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -36,12 +34,16 @@ func BuildUI() {
 		SetLabel(" ▶ ").
 		SetFieldWidth(0).
 		SetAutocompleteFunc(query.GetAutocompleteSuggestions).
+		SetAutocompletedFunc(func(text string, _ int, source int) bool {
+			s.SearchBar.SetText(query.SuggestionText(text))
+			return source != tview.AutocompletedNavigate
+		}).
 		SetDoneFunc(func(key tcell.Key) {
 			if key == tcell.KeyEnter {
 				query.ExecuteQuery(s.SearchBar.GetText())
 			}
 			if key == tcell.KeyEscape {
-				s.App.SetFocus(s.DocList)
+				s.App.SetFocus(state.ActiveDocPanel())
 				state.RefreshPanelBorders()
 			}
 		})
@@ -90,11 +92,12 @@ func BuildUI() {
 	s.DbList.SetBorderColor(activeBorder)
 	s.DbList.SetTitleColor(activeBorder)
 	s.DbList.SetBackgroundColor(tcell.ColorBlack)
-	s.DbList.SetSelectedFunc(func(i int, mainText string, secondary string, shortcut rune) {
-		if idx := strings.Index(mainText, " [gray]"); idx != -1 {
-			mainText = mainText[:idx]
+	s.DbList.SetSelectedFunc(func(i int, _ string, _ string, _ rune) {
+		if i < 0 || i >= len(s.DbVisible) {
+			return
 		}
-		documents.SelectDatabase(mainText)
+		s.DbFilterActive = false
+		documents.SelectDatabase(s.DbVisible[i], nil)
 	})
 
 	// Collections panel (middle)
@@ -103,29 +106,28 @@ func BuildUI() {
 	s.CollList.SetBorderColor(inactiveBorder)
 	s.CollList.SetTitleColor(inactiveTitle)
 	s.CollList.SetBackgroundColor(tcell.ColorBlack)
-	s.CollList.SetSelectedFunc(func(i int, mainText string, secondary string, shortcut rune) {
-		if idx := strings.Index(mainText, " [gray]"); idx != -1 {
-			mainText = mainText[:idx]
+	s.CollList.SetSelectedFunc(func(i int, _ string, _ string, _ rune) {
+		if i < 0 || i >= len(s.CollVisible) {
+			return
 		}
-		documents.SelectCollection(mainText)
+		s.CollFilterActive = false
+		documents.SelectCollection(s.CollVisible[i])
 	})
 	s.CollList.SetDoneFunc(func() {
+		documents.StopLiveMode()
+		state.ClearDocPanel()
+		s.CollEpoch++
+		s.CurrentColl = ""
+		s.AllCollItems = nil
+		s.CollFilterText = ""
+		s.CollFilterActive = false
+		documents.RenderCollList()
 		if s.WideMode {
-			// In wide mode, Esc backs up to database list in the doc panel
+			// In wide mode, Esc backs up to the database list in the doc panel
 			s.CurrentDB = ""
-			s.CurrentColl = ""
-			s.CurrentDocs = nil
-			s.DocList.Clear()
-			s.DocDetail.Clear()
-			s.CollList.Clear()
 			s.DocPages.SwitchToPage("databases")
-			s.App.SetFocus(s.DbList)
-		} else {
-			s.CollList.Clear()
-			state.ClearDocPanel()
-			s.CurrentColl = ""
-			s.App.SetFocus(s.DbList)
 		}
+		s.App.SetFocus(s.DbList)
 		state.RefreshPanelBorders()
 	})
 
@@ -154,6 +156,7 @@ func BuildUI() {
 	s.DocDetail = tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(true).
+		SetRegions(true).
 		SetWrap(true)
 	s.DocDetail.SetBorder(true).SetTitle(" Document Detail ")
 	s.DocDetail.SetBorderColor(inactiveBorder)
@@ -204,25 +207,16 @@ func BuildUI() {
 	s.IndexList.SetTitleColor(inactiveTitle)
 	s.IndexList.SetBackgroundColor(tcell.ColorBlack)
 	s.IndexList.SetDoneFunc(func() {
-		s.DocPages.SwitchToPage("list")
+		if s.WideMode {
+			s.DocPages.SwitchToPage("collections")
+		} else {
+			s.DocPages.SwitchToPage("list")
+		}
 		s.App.SetFocus(s.CollList)
 		state.RefreshPanelBorders()
 	})
 	s.IndexList.SetSelectedFunc(func(i int, _ string, _ string, _ rune) {
-		if i < 0 || i >= len(s.CurrentIndexes) {
-			return
-		}
-		jsonBytes, err := json.MarshalIndent(s.CurrentIndexes[i], "", "  ")
-		if err != nil {
-			s.DocDetail.SetText(fmt.Sprintf("[red]Error formatting index: %s", err))
-		} else {
-			s.DocDetail.SetText(documents.HighlightJSON(string(jsonBytes)))
-			s.DocDetail.SetTitle(fmt.Sprintf(" Index Detail [yellow](%v)[white] ", s.CurrentIndexes[i]["name"]))
-		}
-		s.DocDetail.ScrollToBeginning()
-		s.DocPages.SwitchToPage("detail")
-		s.App.SetFocus(s.DocDetail)
-		state.RefreshPanelBorders()
+		documents.ShowIndexDetail(i)
 	})
 	s.DocPages.AddPage("indexes", s.IndexList, true, false)
 

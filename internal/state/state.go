@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -12,10 +11,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"tango/internal/config"
+	"tango/internal/mjson"
 )
 
 var PageSize = 50
 
+// RollingBuffer keeps the most recent Size samples.
 type RollingBuffer struct {
 	Data []float64
 	Size int
@@ -39,10 +40,34 @@ func (rb *RollingBuffer) Last() float64 {
 	return rb.Data[len(rb.Data)-1]
 }
 
+// Namespace identifies a collection.
+type Namespace struct {
+	DB   string
+	Coll string
+}
+
+func (n Namespace) String() string { return n.DB + "." + n.Coll }
+
+// PageStart is the _id after which a keyset-paged page begins.
+type PageStart struct {
+	ID  interface{}
+	Set bool
+}
+
+// ListEntry is a database or collection shown in a list panel.
+type ListEntry struct {
+	Name string
+	Info string // shown in gray after the name, e.g. a count
+}
+
+// AppState holds all UI and navigation state. Unless noted otherwise, fields
+// must only be read or written on the tview UI goroutine; background work
+// hands results back via App.QueueUpdateDraw (see Async).
 type AppState struct {
 	App          *tview.Application
 	Client       *mongo.Client
 	GlobalCfg    config.Config
+	HostLabel    string
 	QueryTimeout time.Duration
 
 	// UI widgets
@@ -66,48 +91,80 @@ type AppState struct {
 	SortForm      *tview.Form
 
 	DefaultStatusText string
+	status            statusState
 
-	// Navigation state
-	CurrentDB      string
-	CurrentColl    string
-	CurrentPage    int
-	TotalDocs      int64
-	CurrentFilter  bson.M
-	CurrentDocs    []bson.M
-	CurrentIndexes []bson.M
-	CountDirty     bool        // when true, TotalDocs must be recounted
-	SnapshotID     interface{} // max _id at time of first load, nil = no snapshot
+	// Browse state for the current collection.
+	CurrentDB         string
+	CurrentColl       string
+	CurrentPage       int
+	CurrentFilter     bson.D
+	CurrentProjection bson.D
+	CurrentSort       bson.D
+	QuerySkip         int64
+	QueryLimit        int64       // 0 = unlimited
+	PageStarts        []PageStart // keyset paging: exclusive lower-bound _id per page
+	KeysetMode        bool        // current page was loaded with keyset paging
+	NoKeyset          map[Namespace]bool
+	SnapshotID        interface{} // max _id at first load, for stable skip paging
+	CountDirty        bool        // filter changed; TotalDocs must be recounted
+	TotalDocs         int64
+	TotalKnown        bool
+	TotalExact        bool // false when TotalDocs is an estimate
+	Counting          bool
 
-	// Cached data
-	CachedCollNames []string
-	CachedDBCount   int
-	CachedCollCount int
+	// Loaded documents and where they came from. Writes must target DocsNS,
+	// never CurrentDB/CurrentColl, and are refused unless allowed below.
+	CurrentDocs   []bson.D
+	DocsNS        Namespace
+	DocsDeletable bool
+	DocsEditable  bool   // false for projected or aggregated results
+	ResultLabel   string // non-empty for ad-hoc result sets (findOne/aggregate)
 
-	// Filter state
-	DbFilterText   string
-	CollFilterText string
-	AllDBItems     []string
-	AllCollItems   []string
+	// Document currently shown in the detail/tree view.
+	ExpandedDoc      bson.D
+	ExpandedNS       Namespace
+	ExpandedEditable bool
+	DetailTokens     []mjson.Token
+
+	CurrentIndexes []bson.D
+	IndexesNS      Namespace
+
+	// Request generations: async results are dropped when these have moved on.
+	DBEpoch     uint64
+	CollEpoch   uint64
+	DocsEpoch   uint64
+	CountEpoch  uint64
+	StatsEpoch  uint64
+	DocsLoading bool
+
+	// List panels
+	AllDBItems       []ListEntry
+	AllCollItems     []ListEntry
+	DbVisible        []string // names in DbList row order
+	CollVisible      []string // names in CollList row order
+	DbFilterText     string
+	CollFilterText   string
+	DbFilterActive   bool
+	CollFilterActive bool
+	CachedDBCount    int
+	CachedCollCount  int
 
 	// Doc search state
-	DocSearchOriginal string
-	DocSearchActive   bool
+	DocSearchActive bool
+	DocSearchTerm   string
 
-	// Selection
+	// Selection (indices into CurrentDocs)
 	SelectedDocs map[int]bool
 
 	// Persisted state
-	LastDB          string // loaded from persisted state, used for auto-restore
+	LastDB          string
 	LastCollection  string
 	QueryHistory    []string
 	QueryHistoryIdx int // for arrow-up navigation, -1 = not browsing
 
-	// Sort state
-	CurrentSortField string
-	CurrentSortOrder int
-
-	// RBAC
-	ReadOnly bool
+	// RBAC: Privileges is nil when the server doesn't enforce auth.
+	ReadOnly   bool
+	Privileges *Privileges
 
 	// Wide mode (collapse db/coll panels for full-width docs)
 	WideMode   bool
@@ -116,31 +173,18 @@ type AppState struct {
 	// Live mode
 	LiveMode     bool
 	LiveInterval time.Duration
-	LiveTicker   *time.Ticker
 	LiveStopCh   chan struct{}
 
-	// Metrics state
-	PrevOpsTotal   int64
-	OpsHistory     *RollingBuffer
-	ConnHistory    *RollingBuffer
-	MemHistory     *RollingBuffer
-	PingHistory    *RollingBuffer
-	QueueHistory   *RollingBuffer
-	NetInHistory   *RollingBuffer
-	CursorsHistory *RollingBuffer
-	FaultsHistory  *RollingBuffer
-	PrevNetIn      int64
-	PrevNetOut     int64
-	IsReplicaSet   bool
-	ReplLagMs      float64
+	// Detail view: page to return to on Esc ("list" when empty).
+	DetailBackPage string
+
+	// Stats view
+	StatsOps        map[string]interface{} // displayed opid -> raw opid, for :killop
+	RefreshInterval time.Duration          // metrics/stats polling interval
 }
 
 // S is the global singleton application state.
 var S *AppState
-
-func NewCtx() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), S.QueryTimeout)
-}
 
 func ToFloat64(v interface{}) (float64, bool) {
 	switch n := v.(type) {
@@ -156,44 +200,39 @@ func ToFloat64(v interface{}) (float64, bool) {
 	return 0, false
 }
 
-func BareName(item string) string {
-	if idx := strings.Index(item, " [gray]"); idx != -1 {
-		return item[:idx]
-	}
-	return item
-}
-
-func CheckWriteAccess() bool {
-	if S.ReadOnly {
-		ShowError("Read-only connection — write operations disabled")
-		return false
-	}
-	return true
-}
-
-func ShowError(msg string) {
-	S.DocDetail.SetText("[red]" + msg)
-	S.DocDetail.SetTitle(" Error ")
-	S.DocDetail.ScrollToBeginning()
-	S.DocPages.SwitchToPage("detail")
-	S.App.SetFocus(S.DocDetail)
-}
-
-func ShowLoading(msg string) {
-	S.StatusBar.SetText(" [yellow]⏳ " + msg + "...")
-}
-
-func DoneLoading() {
-	S.StatusBar.SetText(S.DefaultStatusText)
-}
-
+// ClearDocPanel resets loaded documents and cancels in-flight loads.
 func ClearDocPanel() {
-	S.CurrentDocs = nil
-	S.DocList.Clear()
-	S.DocDetail.Clear()
-	S.DocTree.SetRoot(nil)
-	S.DocPages.SwitchToPage("list")
-	S.DocList.SetTitle(" Documents ")
+	s := S
+	s.DocsEpoch++
+	s.CountEpoch++
+	s.DocsLoading = false
+	s.Counting = false
+	s.CurrentDocs = nil
+	s.DocsNS = Namespace{}
+	s.DocsDeletable = false
+	s.DocsEditable = false
+	s.ResultLabel = ""
+	s.ExpandedDoc = nil
+	s.DetailTokens = nil
+	s.SelectedDocs = make(map[int]bool)
+	s.DocList.Clear()
+	s.DocDetail.Clear()
+	s.DocTree.SetRoot(nil)
+	s.DocPages.SwitchToPage("list")
+	s.DocList.SetTitle(" Documents ")
+}
+
+// ResetBrowse clears paging/query state for a fresh view of a collection.
+func ResetBrowse() {
+	s := S
+	s.CurrentPage = 0
+	s.PageStarts = nil
+	s.SnapshotID = nil
+	s.CountDirty = true
+	s.CurrentFilter = nil
+	s.CurrentProjection = nil
+	s.QuerySkip = 0
+	s.QueryLimit = 0
 }
 
 func ActiveDocPanel() tview.Primitive {
@@ -259,38 +298,34 @@ func UpdateStatusHints() {
 	var ctxHint string
 	switch focused {
 	case S.DbList:
-		ctxHint = "[gray]type to filter"
+		ctxHint = "[yellow]/[white]:filter"
 	case S.CollList:
 		if S.ReadOnly {
-			ctxHint = "[yellow]I[white]:indexes  [gray]type to filter"
+			ctxHint = "[yellow]I[white]:indexes  [yellow]/[white]:filter"
 		} else {
-			ctxHint = "[yellow]I[white]:indexes  [yellow]D[white]:drop  [gray]type to filter"
+			ctxHint = "[yellow]I[white]:indexes  [yellow]D[white]:drop  [yellow]/[white]:filter"
 		}
 	case S.DocList:
+		sel := "[yellow]Space[white]:select  [yellow]a[white]:all  [yellow]A[white]:none  "
+		if len(S.SelectedDocs) == 0 {
+			sel = "[yellow]Enter[white]:expand  [yellow]Space[white]:select  [yellow]n[white]/[yellow]p[white]:page  [yellow]s[white]:sort  "
+		}
 		if S.ReadOnly {
-			if len(S.SelectedDocs) > 0 {
-				ctxHint = "[yellow]Space[white]:select  [yellow]a[white]:all  [yellow]A[white]:none  [yellow]x[white]:export"
-			} else {
-				ctxHint = "[yellow]Enter[white]:expand  [yellow]Space[white]:select  [yellow]a[white]:all  [yellow]n[white]/[yellow]p[white]:page  [yellow]x[white]:export"
-			}
+			ctxHint = sel + "[yellow]x[white]:export"
 		} else {
-			if len(S.SelectedDocs) > 0 {
-				ctxHint = "[yellow]Space[white]:select  [yellow]a[white]:all  [yellow]A[white]:none  [yellow]d[white]:delete  [yellow]x[white]:export"
-			} else {
-				ctxHint = "[yellow]Enter[white]:expand  [yellow]Space[white]:select  [yellow]a[white]:all  [yellow]n[white]/[yellow]p[white]:page  [yellow]d[white]:delete  [yellow]i[white]:insert  [yellow]x[white]:export"
-			}
+			ctxHint = sel + "[yellow]d[white]:delete  [yellow]i[white]:insert  [yellow]x[white]:export"
 		}
 	case S.DocDetail:
 		if S.ReadOnly {
-			ctxHint = "[yellow]/[white]:search  [yellow]c[white]:copy"
+			ctxHint = "[yellow]/[white]:search  [yellow]c[white]:copy  [yellow]t[white]:tree"
 		} else {
-			ctxHint = "[yellow]/[white]:search  [yellow]c[white]:copy  [yellow]e[white]:edit  [yellow]i[white]:insert"
+			ctxHint = "[yellow]/[white]:search  [yellow]c[white]:copy  [yellow]t[white]:tree  [yellow]e[white]:edit  [yellow]i[white]:insert"
 		}
 	case S.DocTree:
 		if S.ReadOnly {
-			ctxHint = "[yellow]c[white]:copy"
+			ctxHint = "[yellow]c[white]:copy  [yellow]t[white]:json"
 		} else {
-			ctxHint = "[yellow]c[white]:copy  [yellow]e[white]:edit  [yellow]i[white]:insert"
+			ctxHint = "[yellow]c[white]:copy  [yellow]t[white]:json  [yellow]e[white]:edit  [yellow]i[white]:insert"
 		}
 	case S.IndexList:
 		if S.ReadOnly {
@@ -299,9 +334,7 @@ func UpdateStatusHints() {
 			ctxHint = "[yellow]Enter[white]:details  [yellow]X[white]:drop index"
 		}
 	case S.StatsView:
-		ctxHint = "[yellow]r[white]:refresh  [yellow]Esc[white]:back"
-	default:
-		ctxHint = ""
+		ctxHint = "[yellow]r[white]:refresh  [yellow]:killop[white] <opid>  [yellow]Esc[white]:back"
 	}
 
 	if ctxHint != "" {
@@ -309,7 +342,7 @@ func UpdateStatusHints() {
 	} else {
 		S.DefaultStatusText = " " + common
 	}
-	S.StatusBar.SetText(S.DefaultStatusText)
+	renderStatus()
 }
 
 func CycleFocus(forward bool) {
@@ -337,75 +370,95 @@ func CycleFocus(forward bool) {
 
 func GetSelectedCollName() string {
 	idx := S.CollList.GetCurrentItem()
-	if idx < 0 || idx >= S.CollList.GetItemCount() {
+	if idx < 0 || idx >= len(S.CollVisible) {
 		return ""
 	}
-	main, _ := S.CollList.GetItemText(idx)
-	return BareName(main)
+	return S.CollVisible[idx]
 }
 
-func FlashStatus(msg string) {
-	original := S.StatusBar.GetText(false)
-	S.StatusBar.SetText(msg)
-	go func() {
-		time.Sleep(2 * time.Second)
-		S.App.QueueUpdateDraw(func() {
-			S.StatusBar.SetText(original)
-		})
-	}()
+// ListLabel formats a list entry with its (escaped) name and gray info.
+func ListLabel(e ListEntry) string {
+	label := tview.Escape(e.Name)
+	if e.Info != "" {
+		label += " [gray](" + tview.Escape(e.Info) + ")[-]"
+	}
+	return label
 }
 
-func FlashStatusKeep(msg string) {
-	prev := S.StatusBar.GetText(false)
-	_ = prev
-	S.StatusBar.SetText(msg)
-	go func() {
-		time.Sleep(2 * time.Second)
-		S.App.QueueUpdateDraw(func() {
-			S.StatusBar.SetText(S.DefaultStatusText)
-		})
-	}()
+// FormatSort renders a sort spec like "a↑ b↓".
+func FormatSort(sort bson.D) string {
+	parts := make([]string, 0, len(sort))
+	for _, e := range sort {
+		arrow := "↑"
+		if v, ok := ToFloat64(e.Value); ok && v < 0 {
+			arrow = "↓"
+		}
+		parts = append(parts, e.Key+arrow)
+	}
+	return strings.Join(parts, " ")
+}
+
+// TotalPages returns the page count, or -1 when the total is unknown.
+func TotalPages() int64 {
+	if !S.TotalKnown {
+		return -1
+	}
+	p := (S.TotalDocs + int64(PageSize) - 1) / int64(PageSize)
+	if p == 0 {
+		p = 1
+	}
+	return p
 }
 
 func FormatDocListTitle() string {
 	s := S
-	totalPages := (s.TotalDocs + int64(PageSize) - 1) / int64(PageSize)
-	if totalPages == 0 {
-		totalPages = 1
-	}
-	title := fmt.Sprintf(" Documents [yellow](%s.%s)[white] [green][%d/%d][white] %d total",
-		s.CurrentDB, s.CurrentColl, s.CurrentPage+1, totalPages, s.TotalDocs)
-	if s.CurrentSortField != "" {
-		arrow := "↑"
-		if s.CurrentSortOrder == -1 {
-			arrow = "↓"
+	var title string
+	if s.ResultLabel != "" {
+		title = fmt.Sprintf(" Results [green](%d)[white] %s", len(s.CurrentDocs), tview.Escape(s.ResultLabel))
+	} else {
+		ns := tview.Escape(s.CurrentDB + "." + s.CurrentColl)
+		approx := ""
+		if !s.TotalExact {
+			approx = "~"
 		}
-		title += fmt.Sprintf(" [aqua]⇅ %s %s[white]", s.CurrentSortField, arrow)
-	}
-	if skip := int64(s.CurrentPage * PageSize); skip > 100000 {
-		title += " [red]⚠ deep page — may be slow[white]"
-	}
-	if s.SnapshotID != nil && s.CurrentPage > 0 {
-		title += " 📌"
+		switch {
+		case s.TotalKnown:
+			title = fmt.Sprintf(" Documents [yellow](%s)[white] [green][%d/%s%d][white] %s%d total",
+				ns, s.CurrentPage+1, approx, TotalPages(), approx, s.TotalDocs)
+		case s.Counting:
+			title = fmt.Sprintf(" Documents [yellow](%s)[white] [green][%d/?][white] counting…", ns, s.CurrentPage+1)
+		default:
+			title = fmt.Sprintf(" Documents [yellow](%s)[white] [green][%d/?][white] count unavailable", ns, s.CurrentPage+1)
+		}
+		if len(s.CurrentFilter) > 0 || len(s.CurrentProjection) > 0 || s.QuerySkip > 0 || s.QueryLimit > 0 {
+			title += " [aqua]⧩ query[white]"
+		}
+		if len(s.CurrentSort) > 0 {
+			title += " [aqua]⇅ " + tview.Escape(FormatSort(s.CurrentSort)) + "[white]"
+		} else if s.LiveMode {
+			title += " [aqua]newest first[white]"
+		}
+		if !s.KeysetMode && int64(s.CurrentPage)*int64(PageSize)+s.QuerySkip > 100000 {
+			title += " [red]⚠ deep page — may be slow[white]"
+		}
+		if s.SnapshotID != nil && s.CurrentPage > 0 && !s.KeysetMode {
+			title += " 📌"
+		}
 	}
 	if s.LiveMode {
-		title = fmt.Sprintf(" [red]◉ LIVE[white] %s", title)
+		title = " [red]◉ LIVE[white]" + title
 	}
 	if n := len(s.SelectedDocs); n > 0 {
 		title += fmt.Sprintf(" [blue]%d selected[white]", n)
 	}
 	if s.WideMode {
-		breadcrumb := ""
-		if s.CurrentDB != "" {
-			breadcrumb = s.CurrentDB
-		}
+		breadcrumb := tview.Escape(s.CurrentDB)
 		if s.CurrentColl != "" {
-			breadcrumb += " > " + s.CurrentColl
+			breadcrumb += " > " + tview.Escape(s.CurrentColl)
 		}
 		if breadcrumb != "" {
 			title = fmt.Sprintf(" [gray]%s[white] │%s", breadcrumb, title)
 		}
 	}
-	title += " "
-	return title
+	return title + " "
 }
