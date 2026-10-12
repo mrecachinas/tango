@@ -105,10 +105,10 @@ func TestOutputTarget(t *testing.T) {
 	}
 }
 
-func TestAutocompleteEscapesNames(t *testing.T) {
+func TestAutocompletePreservesNames(t *testing.T) {
 	state.S = &state.AppState{AllCollItems: []state.ListEntry{{Name: "we[ird]"}}}
 	got := GetAutocompleteSuggestions("db.we")
-	if len(got) != 1 || got[0] != "db.we[ird[]." {
+	if len(got) != 1 || got[0] != "db.we[ird]." {
 		t.Fatalf("suggestions = %q", got)
 	}
 	if raw := SuggestionText(got[0]); raw != "db.we[ird]." {

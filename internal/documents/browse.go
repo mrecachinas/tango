@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -52,8 +51,6 @@ func LoadDatabases(then func()) {
 			for i, n := range names {
 				s.AllDBItems[i] = state.ListEntry{Name: n, Info: "…"}
 			}
-			s.DbFilterText = ""
-			s.DbFilterActive = false
 			RenderDBList()
 			s.CachedDBCount = len(names)
 			loadDBCollectionCounts(names, epoch)
@@ -80,7 +77,7 @@ func loadDBCollectionCounts(names []string, epoch uint64) {
 			}
 			counts[i] = len(colls)
 		})
-		s.App.QueueUpdateDraw(func() {
+		state.Post(func() {
 			if s.DBEpoch != epoch {
 				return
 			}
@@ -110,15 +107,21 @@ func SelectDatabase(dbName string, then func()) {
 	stopLive(false)
 	s.CurrentDB = dbName
 	s.CurrentColl = ""
+	s.SelectedDB, s.SelectedColl = dbName, ""
 	state.ResetBrowse()
 	s.CurrentSort = nil
 	state.ClearDocPanel()
-	s.SearchBar.SetText("")
+	s.QueryText = ""
 	s.CollEpoch++
 	epoch := s.CollEpoch
 	s.AllCollItems = nil
-	s.CollFilterText = ""
-	s.CollFilterActive = false
+	if s.CollectionsLoading == nil {
+		s.CollectionsLoading = map[string]bool{}
+	}
+	for db := range s.CollectionsLoading {
+		s.CollectionsLoading[db] = false
+	}
+	s.CollectionsLoading[dbName] = true
 	RenderCollList()
 
 	client := s.Client
@@ -128,6 +131,8 @@ func SelectDatabase(dbName string, then func()) {
 		if err != nil {
 			return func() {
 				if s.CollEpoch == epoch {
+					s.CollectionsLoading[dbName] = false
+					s.SidebarRevision++
 					state.ShowError("Error listing collections: " + err.Error())
 				}
 			}
@@ -149,11 +154,9 @@ func SelectDatabase(dbName string, then func()) {
 				s.AllCollItems[i] = state.ListEntry{Name: sp.Name, Info: info}
 			}
 			RenderCollList()
-			if s.WideMode {
-				s.DocPages.SwitchToPage("collections")
-			}
-			s.App.SetFocus(s.CollList)
-			state.RefreshPanelBorders()
+			s.CollectionsLoading[dbName] = false
+			s.SidebarRevision++
+			s.Focus = "sidebar"
 			loadCollectionCounts(dbName, toCount, epoch)
 			if then != nil {
 				then()
@@ -176,7 +179,7 @@ func loadCollectionCounts(dbName string, names []string, epoch uint64) {
 			}
 			counts[i] = n
 		})
-		s.App.QueueUpdateDraw(func() {
+		state.Post(func() {
 			if s.CollEpoch != epoch {
 				return
 			}
@@ -218,7 +221,8 @@ func SelectCollection(collName string) {
 	state.ResetBrowse()
 	s.CurrentSort = nil
 	ClearSelection()
-	s.SearchBar.SetText("")
+	state.ClearDocPanel()
+	s.QueryText = ""
 	SelectCollectionInList(collName)
 	LoadDocuments()
 }
@@ -247,7 +251,6 @@ type pageRequest struct {
 
 type pageResult struct {
 	docs       []bson.D
-	items      []string
 	snapshot   interface{}
 	keysetUsed bool
 	noKeyset   bool
@@ -261,6 +264,9 @@ func loadDocuments(navigate bool) {
 	s := state.S
 	if s.CurrentDB == "" || s.CurrentColl == "" {
 		return
+	}
+	if navigate {
+		s.View, s.Focus = "list", "content"
 	}
 	if s.NoKeyset == nil {
 		s.NoKeyset = map[state.Namespace]bool{}
@@ -301,7 +307,7 @@ func loadDocuments(navigate bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		res := fetchPage(ctx, client.Database(req.ns.DB).Collection(req.ns.Coll), req)
-		s.App.QueueUpdateDraw(func() {
+		state.Post(func() {
 			state.EndLoading(tok)
 			if s.DocsEpoch != epoch {
 				return
@@ -391,11 +397,6 @@ func fetchPage(ctx context.Context, coll *mongo.Collection, req pageRequest) pag
 		}
 	}
 
-	res.items = make([]string, len(res.docs))
-	for i, d := range res.docs {
-		res.items[i] = docListItem(d)
-	}
-
 	if len(req.filter) == 0 && req.skip == 0 && req.limit == 0 {
 		if n, err := coll.EstimatedDocumentCount(ctx); err == nil {
 			res.total = n
@@ -417,13 +418,13 @@ func findAll(ctx context.Context, coll *mongo.Collection, filter bson.D, opts *o
 	return docs, nil
 }
 
-// docListItem renders a document as a single escaped, truncated list row.
+// docListItem renders a document as a single truncated plain-text row.
 func docListItem(d bson.D) string {
 	text := mjson.Compact(d)
 	if r := []rune(text); len(r) > maxListItemLen {
 		text = string(r[:maxListItemLen]) + "…"
 	}
-	return tview.Escape(text)
+	return text
 }
 
 func idKey(d bson.D) (string, bool) {
@@ -444,7 +445,7 @@ func applyPage(req pageRequest, res pageResult, navigate, countDirty bool) {
 			}
 		}
 	}
-	cursor := s.DocList.GetCurrentItem()
+	cursor := s.Cursor
 
 	s.CurrentDocs = res.docs
 	s.DocsNS = req.ns
@@ -476,27 +477,18 @@ func applyPage(req pageRequest, res pageResult, navigate, countDirty bool) {
 			}
 		}
 	}
-	s.DocList.Clear()
-	for i, item := range res.items {
-		if s.SelectedDocs[i] {
-			item = "✓ " + item
-		}
-		s.DocList.AddItem(item, "", 0, nil)
-	}
-	s.DocList.SetTitle(state.FormatDocListTitle())
+	s.DocsRevision++
 	if navigate {
-		s.DocList.SetCurrentItem(0)
-		s.DocPages.SwitchToPage("list")
-		s.App.SetFocus(s.DocList)
-		state.RefreshPanelBorders()
-	} else if n := s.DocList.GetItemCount(); n > 0 {
+		s.Cursor = 0
+		s.View, s.Focus = "list", "content"
+	} else if n := len(s.CurrentDocs); n > 0 {
 		if cursor >= n {
 			cursor = n - 1
 		}
 		if cursor < 0 {
 			cursor = 0
 		}
-		s.DocList.SetCurrentItem(cursor)
+		s.Cursor = cursor
 	}
 }
 
@@ -523,7 +515,7 @@ func startCount(req pageRequest, filter bson.D) {
 			opts.SetLimit(req.limit)
 		}
 		n, err := coll.CountDocuments(ctx, filter, opts)
-		s.App.QueueUpdateDraw(func() {
+		state.Post(func() {
 			if s.CountEpoch != epoch {
 				return
 			}
@@ -535,9 +527,6 @@ func startCount(req pageRequest, filter bson.D) {
 				s.TotalDocs = n
 				s.TotalKnown = true
 				s.TotalExact = true
-			}
-			if s.ResultLabel == "" {
-				s.DocList.SetTitle(state.FormatDocListTitle())
 			}
 		})
 	}()
@@ -597,7 +586,8 @@ func FullRefresh() {
 	s.CurrentDB, s.CurrentColl = "", ""
 	s.CollEpoch++
 	s.AllCollItems = nil
-	s.CollFilterText = ""
+	s.Collections = nil
+	s.CollectionsLoading = nil
 	RenderCollList()
 	state.ClearDocPanel()
 	LoadDatabases(func() { RestoreSession(savedDB, savedColl) })
@@ -620,7 +610,6 @@ func StartLiveMode() {
 	stop := make(chan struct{})
 	s.LiveStopCh = stop
 	liveReload()
-	state.UpdateStatusHints()
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -628,7 +617,7 @@ func StartLiveMode() {
 		for {
 			select {
 			case <-ticker.C:
-				s.App.QueueUpdateDraw(func() {
+				state.Post(func() {
 					if s.LiveMode && s.LiveStopCh == stop && !s.DocsLoading {
 						liveReload()
 					}
@@ -666,10 +655,7 @@ func stopLive(reload bool) {
 		s.CurrentPage = 0
 		s.PageStarts = nil
 		ReloadDocuments()
-	} else if s.CurrentColl != "" {
-		s.DocList.SetTitle(state.FormatDocListTitle())
 	}
-	state.UpdateStatusHints()
 }
 
 // ShowResultDocs shows an ad-hoc result set (not a paged collection view).
@@ -687,14 +673,9 @@ func ShowResultDocs(docs []bson.D, ns state.Namespace, label string, deletable, 
 	s.DocsEditable = editable
 	s.ResultLabel = label
 	ClearSelection()
-	s.DocList.Clear()
-	for _, d := range docs {
-		s.DocList.AddItem(docListItem(d), "", 0, nil)
-	}
-	s.DocList.SetTitle(state.FormatDocListTitle())
-	s.DocPages.SwitchToPage("list")
-	s.App.SetFocus(s.DocList)
-	state.RefreshPanelBorders()
+	s.DocsRevision++
+	s.Cursor = 0
+	s.View, s.Focus = "list", "content"
 }
 
 // removeDocsByID drops documents whose _id is in keys from an ad-hoc result set.

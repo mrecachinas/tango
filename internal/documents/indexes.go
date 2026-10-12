@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"tango/internal/mjson"
@@ -37,17 +36,9 @@ func ShowIndexesFor(ns state.Namespace) {
 			}
 			s.CurrentIndexes = idxs
 			s.IndexesNS = ns
-			s.IndexList.Clear()
-			for _, idx := range idxs {
-				name, _ := mjson.Get(idx, "name")
-				key, _ := mjson.Get(idx, "key")
-				nameStr, _ := name.(string)
-				s.IndexList.AddItem(tview.Escape(nameStr), tview.Escape(mjson.Compact(key)), 0, nil)
-			}
-			s.IndexList.SetTitle(fmt.Sprintf(" Indexes [yellow](%s)[white] [green]%d[white] ", tview.Escape(ns.String()), len(idxs)))
-			s.DocPages.SwitchToPage("indexes")
-			s.App.SetFocus(s.IndexList)
-			state.RefreshPanelBorders()
+			s.IndexCursor = 0
+			s.ListRevision++
+			s.View, s.Focus = "indexes", "content"
 		}
 	})
 }
@@ -61,13 +52,13 @@ func ShowIndexDetail(i int) {
 	idx := s.CurrentIndexes[i]
 	name, _ := mjson.Get(idx, "name")
 	nameStr, _ := name.(string)
-	state.SetDetail(fmt.Sprintf(" Index Detail [yellow](%s)[white] ", tview.Escape(nameStr)), mjson.Tokens(idx, true))
+	state.SetDetail("Index Detail · "+nameStr, mjson.Tokens(idx, true))
 	s.DetailBackPage = "indexes"
 }
 
 func DropIndexConfirm() {
 	s := state.S
-	idx := s.IndexList.GetCurrentItem()
+	idx := s.IndexCursor
 	if idx < 0 || idx >= len(s.CurrentIndexes) {
 		return
 	}
@@ -81,7 +72,7 @@ func DropIndexConfirm() {
 		state.FlashError("Cannot drop the _id_ index")
 		return
 	}
-	confirm(s.ConfirmModal, "confirm", fmt.Sprintf("Drop index '%s' on %s? This cannot be undone!", name, ns), "Drop", s.IndexList, func() {
+	confirm("drop-index", fmt.Sprintf("Drop index '%s' on %s? This cannot be undone!", name, ns), "", func() {
 		coll := s.Client.Database(ns.DB).Collection(ns.Coll)
 		state.Async("Dropping index", func(ctx context.Context) func() {
 			_, err := coll.Indexes().DropOne(ctx, name)
@@ -90,7 +81,7 @@ func DropIndexConfirm() {
 					state.FlashError("Drop index failed: " + err.Error())
 					return
 				}
-				state.FlashStatus(fmt.Sprintf(" [green]Index '%s' dropped", tview.Escape(name)))
+				state.FlashStatus(fmt.Sprintf("Index '%s' dropped", name))
 				ShowIndexesFor(ns)
 			}
 		})

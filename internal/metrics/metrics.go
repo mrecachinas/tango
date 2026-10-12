@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -297,11 +298,12 @@ func (m *model) deliver(smp sample, post func(func()), sink func(Snapshot)) {
 	})
 }
 
-// Start polls immediately and then every interval. post must enqueue its
+// Start polls immediately and then every interval, returning a stop function.
+// post must enqueue its
 // closure on the UI goroutine; that closure applies history and calls sink.
 // Each Start owns independent history. Client and timeout are captured here,
 // while host label, read-only state and counts are read inside the posted closure.
-func Start(interval time.Duration, post func(func()), sink func(Snapshot)) {
+func Start(interval time.Duration, post func(func()), sink func(Snapshot)) func() {
 	s := state.S
 	if interval <= 0 {
 		interval = DefaultInterval
@@ -311,13 +313,32 @@ func Start(interval time.Duration, post func(func()), sink func(Snapshot)) {
 		p.timeout = interval * 5
 	}
 	m := newModel()
+	stop := make(chan struct{})
+	var once sync.Once
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			smp := p.fetch()
-			m.deliver(smp, post, sink)
-			<-ticker.C
+			m.deliver(smp, func(fn func()) {
+				post(func() {
+					if state.S != s {
+						return
+					}
+					select {
+					case <-stop:
+						return
+					default:
+						fn()
+					}
+				})
+			}, sink)
+			select {
+			case <-ticker.C:
+			case <-stop:
+				return
+			}
 		}
 	}()
+	return func() { once.Do(func() { close(stop) }) }
 }

@@ -115,6 +115,10 @@ func (p *Privileges) AnyWrite() bool {
 
 // CheckWrite reports whether action is allowed on ns, showing an error if not.
 func CheckWrite(action string, ns Namespace) bool {
+	if S.ReadOnly {
+		ShowError("Read-only mode: write operations are disabled")
+		return false
+	}
 	if S.Privileges.Can(action, ns.DB, ns.Coll) {
 		return true
 	}

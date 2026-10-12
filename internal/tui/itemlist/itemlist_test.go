@@ -1,4 +1,4 @@
-package listview
+package itemlist
 
 import (
 	"fmt"

@@ -4,11 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/charmbracelet/x/ansi"
 	"tango/internal/state"
+	"tango/internal/tui/jsontree"
 )
 
 var users = state.Namespace{DB: "app", Coll: "users"}
@@ -27,10 +28,10 @@ func TestDocTitle_ObjectID(t *testing.T) {
 	}
 }
 
-func TestDocTitle_CompoundIDIsEscaped(t *testing.T) {
+func TestDocTitle_CompoundIDIsLiteral(t *testing.T) {
 	got := DocTitle(bson.D{{Key: "_id", Value: bson.D{{Key: "a", Value: "[red]"}}}}, users, "")
-	if strings.Contains(got, `"[red]"`) {
-		t.Errorf("markup in _id must be escaped: %q", got)
+	if !strings.Contains(got, `"[red]"`) {
+		t.Errorf("brackets in _id must be preserved: %q", got)
 	}
 }
 
@@ -44,27 +45,24 @@ func TestDocTitle_NoID(t *testing.T) {
 	}
 }
 
-func TestBuildTreeNodesEscapes(t *testing.T) {
-	root := tview.NewTreeNode("root")
-	BuildTreeNodes(root, "[k]", bson.A{"[red]x"}, true)
-	node := root.GetChildren()[0]
-	if !strings.Contains(node.GetText(), "[k[]") || !strings.Contains(node.GetText(), "[1 items[]") {
-		t.Errorf("array node text not escaped: %q", node.GetText())
-	}
-	leaf := node.GetChildren()[0].GetText()
-	if !strings.Contains(leaf, "[0[]") || !strings.Contains(leaf, `"[red[]x"`) {
-		t.Errorf("leaf not escaped: %q", leaf)
+func TestTreePreservesBrackets(t *testing.T) {
+	tree := jsontree.New()
+	tree.SetDoc(bson.D{{Key: "[k]", Value: bson.A{"[red]x"}}})
+	tree.SetSize(100, 10)
+	text := ansi.Strip(tree.View())
+	if !strings.Contains(text, "[k]") || !strings.Contains(text, "[red]x") {
+		t.Errorf("brackets were interpreted: %q", text)
 	}
 }
 
-func TestDocListItemTruncatesAndEscapes(t *testing.T) {
+func TestDocListItemTruncatesAndPreservesBrackets(t *testing.T) {
 	long := strings.Repeat("x", 5000)
 	item := docListItem(bson.D{{Key: "s", Value: long}, {Key: "t", Value: "[red]"}})
 	if len([]rune(item)) > maxListItemLen+10 {
 		t.Errorf("item not truncated: %d runes", len([]rune(item)))
 	}
 	item = docListItem(bson.D{{Key: "tags", Value: bson.A{"x"}}})
-	if !strings.Contains(item, `["x"[]`) {
-		t.Errorf("array brackets must be escaped: %q", item)
+	if !strings.Contains(item, `["x"]`) {
+		t.Errorf("array brackets must be preserved: %q", item)
 	}
 }

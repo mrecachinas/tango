@@ -5,10 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"os/exec"
 
 	"tango/internal/config"
 	"tango/internal/mjson"
@@ -60,38 +59,47 @@ type ListEntry struct {
 	Info string // shown in gray after the name, e.g. a count
 }
 
-// AppState holds all UI and navigation state. Unless noted otherwise, fields
-// must only be read or written on the tview UI goroutine; background work
-// hands results back via App.QueueUpdateDraw (see Async).
+// Confirmation captures the target and action before an asynchronous reload
+// can change the selected document or namespace.
+type Confirmation struct {
+	ID, Question, Expected string
+	OnYes                  func()
+}
+
+type EditorRequest struct {
+	Command *exec.Cmd
+	Done    func(error)
+}
+
+// AppState is the data store. Mutate it only on the UI goroutine; background
+// work hands results back through Post. Components belong to the root model.
 type AppState struct {
-	App          *tview.Application
 	Client       *mongo.Client
 	GlobalCfg    config.Config
 	HostLabel    string
 	QueryTimeout time.Duration
 
-	// UI widgets
-	MetricsBar    *tview.TextView
-	SearchBar     *tview.InputField
-	DbList        *tview.List
-	CollList      *tview.List
-	DocList       *tview.List
-	DocDetail     *tview.TextView
-	DocTree       *tview.TreeView
-	DocPages      *tview.Pages
-	IndexList     *tview.List
-	StatsView     *tview.TextView
-	StatusBar     *tview.TextView
-	HelpView      *tview.TextView
-	ConfirmModal  *tview.Modal
-	DropModal     *tview.Modal
-	RootPages     *tview.Pages
-	DocSearchBar  *tview.InputField
-	DocDetailFlex *tview.Flex
-	SortForm      *tview.Form
-
-	DefaultStatusText string
-	status            statusState
+	View, Focus        string // list/detail/tree/indexes/stats; sidebar/content
+	Cursor             int
+	IndexCursor        int
+	SelectedDB         string
+	SelectedColl       string
+	DetailTitle        string
+	StatsText          string
+	QueryText          string
+	PromptKind         string
+	PromptText         string
+	Confirm            *Confirmation
+	Editor             *EditorRequest
+	Quit               bool
+	DocsRevision       uint64
+	DetailRevision     uint64
+	ListRevision       uint64
+	StatsRevision      uint64
+	SidebarRevision    uint64
+	Collections        map[string][]ListEntry
+	CollectionsLoading map[string]bool
+	status             statusState
 
 	// Browse state for the current collection.
 	CurrentDB         string
@@ -137,17 +145,11 @@ type AppState struct {
 	StatsEpoch  uint64
 	DocsLoading bool
 
-	// List panels
-	AllDBItems       []ListEntry
-	AllCollItems     []ListEntry
-	DbVisible        []string // names in DbList row order
-	CollVisible      []string // names in CollList row order
-	DbFilterText     string
-	CollFilterText   string
-	DbFilterActive   bool
-	CollFilterActive bool
-	CachedDBCount    int
-	CachedCollCount  int
+	// Database/collection metadata.
+	AllDBItems      []ListEntry
+	AllCollItems    []ListEntry
+	CachedDBCount   int
+	CachedCollCount int
 
 	// Doc search state
 	DocSearchActive bool
@@ -167,8 +169,7 @@ type AppState struct {
 	Privileges *Privileges
 
 	// Wide mode (collapse db/coll panels for full-width docs)
-	WideMode   bool
-	PanelsFlex *tview.Flex
+	WideMode bool
 
 	// Live mode
 	LiveMode     bool
@@ -181,6 +182,7 @@ type AppState struct {
 	// Stats view
 	StatsOps        map[string]interface{} // displayed opid -> raw opid, for :killop
 	RefreshInterval time.Duration          // metrics/stats polling interval
+	StatsStopCh     chan struct{}
 }
 
 // S is the global singleton application state.
@@ -215,11 +217,15 @@ func ClearDocPanel() {
 	s.ExpandedDoc = nil
 	s.DetailTokens = nil
 	s.SelectedDocs = make(map[int]bool)
-	s.DocList.Clear()
-	s.DocDetail.Clear()
-	s.DocTree.SetRoot(nil)
-	s.DocPages.SwitchToPage("list")
-	s.DocList.SetTitle(" Documents ")
+	s.TotalKnown, s.TotalExact, s.KeysetMode = false, false, false
+	s.TotalDocs = 0
+	s.ExpandedNS = Namespace{}
+	s.ExpandedEditable = false
+	s.DocSearchActive, s.DocSearchTerm = false, ""
+	s.Cursor = 0
+	s.DocsRevision++
+	s.DetailRevision++
+	s.View = "list"
 }
 
 // ResetBrowse clears paging/query state for a fresh view of a collection.
@@ -235,152 +241,15 @@ func ResetBrowse() {
 	s.QueryLimit = 0
 }
 
-func ActiveDocPanel() tview.Primitive {
-	name, _ := S.DocPages.GetFrontPage()
-	switch name {
-	case "detail":
-		return S.DocDetail
-	case "tree":
-		return S.DocTree
-	case "indexes":
-		return S.IndexList
-	case "stats":
-		return S.StatsView
-	case "databases":
-		return S.DbList
-	case "collections":
-		return S.CollList
-	default:
-		return S.DocList
-	}
-}
-
-func RefreshPanelBorders() {
-	focused := S.App.GetFocus()
-	panels := []tview.Primitive{S.DbList, S.CollList, S.DocList, S.DocDetail, S.DocTree, S.IndexList, S.StatsView}
-	for _, p := range panels {
-		active := (p == focused)
-		var bc, tc tcell.Color
-		if active {
-			bc = tcell.ColorDodgerBlue
-			tc = tcell.ColorDodgerBlue
-		} else {
-			bc = tcell.ColorDimGray
-			tc = tcell.ColorGray
-		}
-		switch w := p.(type) {
-		case *tview.List:
-			w.SetBorderColor(bc)
-			w.SetTitleColor(tc)
-		case *tview.TextView:
-			w.SetBorderColor(bc)
-			w.SetTitleColor(tc)
-		case *tview.TreeView:
-			w.SetBorderColor(bc)
-			w.SetTitleColor(tc)
-		}
-	}
-	UpdateStatusHints()
-}
-
-func UpdateStatusHints() {
-	liveHint := ""
-	if S.LiveMode {
-		liveHint = "[red]◉ LIVE[white]  [yellow]L[white]:pause  "
-	}
-	wideHint := "[yellow]W[white]:wide  "
-	if S.WideMode {
-		wideHint = "[yellow]W[white]:panels  "
-	}
-	common := liveHint + wideHint + "[yellow]Tab[white]:panels  [yellow]/[white]:query  [yellow]r[white]:refresh  [yellow]Esc[white]:back  [yellow]q[white]:quit"
-
-	focused := S.App.GetFocus()
-	var ctxHint string
-	switch focused {
-	case S.DbList:
-		ctxHint = "[yellow]/[white]:filter"
-	case S.CollList:
-		if S.ReadOnly {
-			ctxHint = "[yellow]I[white]:indexes  [yellow]/[white]:filter"
-		} else {
-			ctxHint = "[yellow]I[white]:indexes  [yellow]D[white]:drop  [yellow]/[white]:filter"
-		}
-	case S.DocList:
-		sel := "[yellow]Space[white]:select  [yellow]a[white]:all  [yellow]A[white]:none  "
-		if len(S.SelectedDocs) == 0 {
-			sel = "[yellow]Enter[white]:expand  [yellow]Space[white]:select  [yellow]n[white]/[yellow]p[white]:page  [yellow]s[white]:sort  "
-		}
-		if S.ReadOnly {
-			ctxHint = sel + "[yellow]x[white]:export"
-		} else {
-			ctxHint = sel + "[yellow]d[white]:delete  [yellow]i[white]:insert  [yellow]x[white]:export"
-		}
-	case S.DocDetail:
-		if S.ReadOnly {
-			ctxHint = "[yellow]/[white]:search  [yellow]c[white]:copy  [yellow]t[white]:tree"
-		} else {
-			ctxHint = "[yellow]/[white]:search  [yellow]c[white]:copy  [yellow]t[white]:tree  [yellow]e[white]:edit  [yellow]i[white]:insert"
-		}
-	case S.DocTree:
-		if S.ReadOnly {
-			ctxHint = "[yellow]c[white]:copy  [yellow]t[white]:json"
-		} else {
-			ctxHint = "[yellow]c[white]:copy  [yellow]t[white]:json  [yellow]e[white]:edit  [yellow]i[white]:insert"
-		}
-	case S.IndexList:
-		if S.ReadOnly {
-			ctxHint = "[yellow]Enter[white]:details"
-		} else {
-			ctxHint = "[yellow]Enter[white]:details  [yellow]X[white]:drop index"
-		}
-	case S.StatsView:
-		ctxHint = "[yellow]r[white]:refresh  [yellow]:killop[white] <opid>  [yellow]Esc[white]:back"
-	}
-
-	if ctxHint != "" {
-		S.DefaultStatusText = " " + ctxHint + "  [gray]│[white]  " + common
-	} else {
-		S.DefaultStatusText = " " + common
-	}
-	renderStatus()
-}
-
-func CycleFocus(forward bool) {
-	if S.WideMode {
-		S.App.SetFocus(ActiveDocPanel())
-		RefreshPanelBorders()
-		return
-	}
-	focusable := []tview.Primitive{S.DbList, S.CollList, ActiveDocPanel()}
-	focused := S.App.GetFocus()
-	for i, p := range focusable {
-		if p == focused {
-			var next int
-			if forward {
-				next = (i + 1) % len(focusable)
-			} else {
-				next = (i - 1 + len(focusable)) % len(focusable)
-			}
-			S.App.SetFocus(focusable[next])
-			RefreshPanelBorders()
-			return
-		}
-	}
-}
-
 func GetSelectedCollName() string {
-	idx := S.CollList.GetCurrentItem()
-	if idx < 0 || idx >= len(S.CollVisible) {
-		return ""
-	}
-	return S.CollVisible[idx]
+	return S.SelectedColl
 }
 
-// ListLabel formats a list entry with its (escaped) name and gray info.
+// ListLabel formats an entry without terminal markup.
 func ListLabel(e ListEntry) string {
-	label := tview.Escape(e.Name)
+	label := e.Name
 	if e.Info != "" {
-		label += " [gray](" + tview.Escape(e.Info) + ")[-]"
+		label += " (" + e.Info + ")"
 	}
 	return label
 }
@@ -412,53 +281,44 @@ func TotalPages() int64 {
 
 func FormatDocListTitle() string {
 	s := S
-	var title string
+	var parts []string
 	if s.ResultLabel != "" {
-		title = fmt.Sprintf(" Results [green](%d)[white] %s", len(s.CurrentDocs), tview.Escape(s.ResultLabel))
+		parts = append(parts, fmt.Sprintf("%d results · %s", len(s.CurrentDocs), s.ResultLabel))
 	} else {
-		ns := tview.Escape(s.CurrentDB + "." + s.CurrentColl)
 		approx := ""
 		if !s.TotalExact {
 			approx = "~"
 		}
 		switch {
 		case s.TotalKnown:
-			title = fmt.Sprintf(" Documents [yellow](%s)[white] [green][%d/%s%d][white] %s%d total",
-				ns, s.CurrentPage+1, approx, TotalPages(), approx, s.TotalDocs)
+			start := s.CurrentPage*PageSize + 1
+			if len(s.CurrentDocs) == 0 {
+				start = 0
+			}
+			end := s.CurrentPage*PageSize + len(s.CurrentDocs)
+			parts = append(parts, fmt.Sprintf("%d–%d of %s%d", start, end, approx, s.TotalDocs))
 		case s.Counting:
-			title = fmt.Sprintf(" Documents [yellow](%s)[white] [green][%d/?][white] counting…", ns, s.CurrentPage+1)
+			parts = append(parts, "counting…")
 		default:
-			title = fmt.Sprintf(" Documents [yellow](%s)[white] [green][%d/?][white] count unavailable", ns, s.CurrentPage+1)
-		}
-		if len(s.CurrentFilter) > 0 || len(s.CurrentProjection) > 0 || s.QuerySkip > 0 || s.QueryLimit > 0 {
-			title += " [aqua]⧩ query[white]"
+			parts = append(parts, fmt.Sprintf("page %d · count unavailable", s.CurrentPage+1))
 		}
 		if len(s.CurrentSort) > 0 {
-			title += " [aqua]⇅ " + tview.Escape(FormatSort(s.CurrentSort)) + "[white]"
+			parts = append(parts, "⇅ "+FormatSort(s.CurrentSort))
 		} else if s.LiveMode {
-			title += " [aqua]newest first[white]"
+			parts = append(parts, "newest first")
+		}
+		if len(s.CurrentFilter) > 0 || len(s.CurrentProjection) > 0 || s.QuerySkip > 0 || s.QueryLimit > 0 {
+			parts = append(parts, "⧩ "+mjson.Compact(s.CurrentFilter))
 		}
 		if !s.KeysetMode && int64(s.CurrentPage)*int64(PageSize)+s.QuerySkip > 100000 {
-			title += " [red]⚠ deep page — may be slow[white]"
+			parts = append(parts, "⚠ deep page")
 		}
 		if s.SnapshotID != nil && s.CurrentPage > 0 && !s.KeysetMode {
-			title += " 📌"
+			parts = append(parts, "📌")
 		}
-	}
-	if s.LiveMode {
-		title = " [red]◉ LIVE[white]" + title
 	}
 	if n := len(s.SelectedDocs); n > 0 {
-		title += fmt.Sprintf(" [blue]%d selected[white]", n)
+		parts = append(parts, fmt.Sprintf("%d selected", n))
 	}
-	if s.WideMode {
-		breadcrumb := tview.Escape(s.CurrentDB)
-		if s.CurrentColl != "" {
-			breadcrumb += " > " + tview.Escape(s.CurrentColl)
-		}
-		if breadcrumb != "" {
-			title = fmt.Sprintf(" [gray]%s[white] │%s", breadcrumb, title)
-		}
-	}
-	return title + " "
+	return strings.Join(parts, " · ")
 }

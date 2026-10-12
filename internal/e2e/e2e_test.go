@@ -1,4 +1,4 @@
-// Package e2e drives the real tango UI on a simulated terminal against a live
+// Package e2e drives the real tango root model without a terminal against a live
 // MongoDB. It is skipped unless TANGO_E2E_MONGO_URI is set, e.g.
 //
 //	docker run -d --rm -p 27017:27017 mongo:7 --replSet rs0
@@ -10,14 +10,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
+	"charm.land/bubbles/v2/cursor"
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -29,27 +31,71 @@ import (
 	"tango/internal/mjson"
 	"tango/internal/query"
 	"tango/internal/state"
-	"tango/internal/ui"
+	"tango/internal/tui"
 )
 
 type env struct {
-	keys   atomic.Int64 // key events seen by the app
-	sent   int64
-	t      *testing.T
-	sim    tcell.SimulationScreen
-	client *mongo.Client
-	dbName string
-	db     *mongo.Database
+	pending  atomic.Int64
+	t        *testing.T
+	model    *tui.Model
+	messages chan tea.Msg
+	done     chan struct{}
+	snapshot metrics.Snapshot
+	client   *mongo.Client
+	dbName   string
+	db       *mongo.Database
 }
 
 func (e *env) onUI(f func()) {
 	e.t.Helper()
-	done := make(chan struct{})
-	state.S.App.QueueUpdateDraw(func() { f(); close(done) })
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		e.t.Fatal("UI goroutine did not respond")
+	e.update(state.ApplyMsg{Fn: f})
+	e.pump(5 * time.Millisecond)
+}
+
+func (e *env) update(msg tea.Msg) {
+	if _, blink := msg.(cursor.BlinkMsg); blink {
+		return
+	}
+	_, cmd := e.model.Update(msg)
+	e.command(cmd)
+}
+
+func (e *env) command(cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	e.pending.Add(1)
+	go func() {
+		defer e.pending.Add(-1)
+		msg := cmd()
+		if msg == nil {
+			return
+		}
+		select {
+		case e.messages <- msg:
+		case <-e.done:
+		}
+	}()
+}
+
+// pump executes model updates serially; command work and Mongo calls stay off
+// this goroutine. Batch commands are recursively scheduled and timers bounded.
+func (e *env) pump(duration time.Duration) {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	for {
+		select {
+		case msg := <-e.messages:
+			if batch, ok := msg.(tea.BatchMsg); ok {
+				for _, cmd := range batch {
+					e.command(cmd)
+				}
+			} else {
+				e.update(msg)
+			}
+		case <-timer.C:
+			return
+		}
 	}
 }
 
@@ -62,7 +108,7 @@ func (e *env) waitFor(what string, cond func() bool) {
 		if ok {
 			return
 		}
-		time.Sleep(20 * time.Millisecond)
+		e.pump(20 * time.Millisecond)
 	}
 	e.t.Fatalf("timed out waiting for %s", what)
 }
@@ -70,8 +116,11 @@ func (e *env) waitFor(what string, cond func() bool) {
 // idle waits until no loads are in flight.
 func (e *env) idle() {
 	e.t.Helper()
-	time.Sleep(50 * time.Millisecond)
-	e.waitFor("idle", func() bool { return !state.S.DocsLoading && !state.S.Counting })
+	e.pump(50 * time.Millisecond)
+	e.waitFor("idle", func() bool {
+		_, _, loading := state.Status()
+		return !state.S.DocsLoading && !state.S.Counting && loading == "" && e.pending.Load() == 0
+	})
 }
 
 // view is a copy of app state taken on the UI goroutine.
@@ -94,48 +143,36 @@ func (e *env) snap() view {
 			CurrentDocs: append([]bson.D(nil), s.CurrentDocs...), TotalDocs: s.TotalDocs,
 			TotalKnown: s.TotalKnown, TotalExact: s.TotalExact, KeysetMode: s.KeysetMode,
 			CurrentPage: s.CurrentPage, DocsNS: s.DocsNS, CurrentColl: s.CurrentColl,
-			CurrentSort: s.CurrentSort, Metrics: s.MetricsBar.GetText(true),
+			CurrentSort: s.CurrentSort, Metrics: ansi.Strip(e.model.View().Content),
 		}
 	})
 	return v
 }
 
 func (e *env) screen() string {
-	e.onUI(func() {})
-	cells, w, h := e.sim.GetContents()
-	var lines []string
-	for y := 0; y < h; y++ {
-		var b strings.Builder
-		for x := 0; x < w; x++ {
-			if c := cells[y*w+x]; len(c.Runes) > 0 {
-				b.WriteRune(c.Runes[0])
-			} else {
-				b.WriteByte(' ')
-			}
-		}
-		lines = append(lines, b.String())
-	}
-	return strings.Join(lines, "\n")
+	e.pump(5 * time.Millisecond)
+	return ansi.Strip(e.model.View().Content)
 }
 
 // key injects a key and waits until the app has processed it.
-func (e *env) key(k tcell.Key, r rune) {
+func (e *env) key(k string, r rune) {
 	e.t.Helper()
-	e.sent++
-	e.sim.InjectKey(k, r, 0)
-	deadline := time.Now().Add(10 * time.Second)
-	for e.keys.Load() < e.sent {
-		if time.Now().After(deadline) {
-			e.t.Fatal("key event not processed")
-		}
-		time.Sleep(time.Millisecond)
+	key := tea.Key{Code: r, Text: string(r)}
+	switch k {
+	case "enter":
+		key = tea.Key{Code: tea.KeyEnter}
+	case "esc":
+		key = tea.Key{Code: tea.KeyEscape}
+	case "tab":
+		key = tea.Key{Code: tea.KeyTab}
 	}
-	e.onUI(func() {})
+	e.update(tea.KeyPressMsg(key))
+	e.pump(5 * time.Millisecond)
 }
 
 func (e *env) typeText(s string) {
 	for _, r := range s {
-		e.key(tcell.KeyRune, r)
+		e.key("rune", r)
 	}
 }
 
@@ -173,7 +210,8 @@ func setup(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, client: client, dbName: fmt.Sprintf("tango_e2e_%d", time.Now().UnixNano())}
+	e := &env{t: t, client: client, dbName: fmt.Sprintf("tango_e2e_%d", time.Now().UnixNano()),
+		messages: make(chan tea.Msg, 4096), done: make(chan struct{})}
 	e.db = client.Database(e.dbName)
 	t.Cleanup(func() {
 		_ = e.db.Drop(context.Background())
@@ -188,29 +226,28 @@ func setup(t *testing.T) *env {
 		SelectedDocs: map[int]bool{}, QueryHistoryIdx: -1,
 		Privileges: privs, ReadOnly: !privs.AnyWrite(), NoKeyset: map[state.Namespace]bool{},
 	}
-	e.sim = tcell.NewSimulationScreen("UTF-8")
-	if err := e.sim.Init(); err != nil {
-		t.Fatal(err)
+	state.SetSender(nil)
+	e.model = tui.New()
+	e.model.Exec = func(cmd *exec.Cmd, cb tea.ExecCallback) tea.Cmd {
+		return func() tea.Msg { return cb(cmd.Run()) }
 	}
-	state.S.App = tview.NewApplication().SetScreen(e.sim)
-	ui.BuildUI()
-	capture := state.S.App.GetInputCapture()
-	state.S.App.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-		defer e.keys.Add(1)
-		return capture(ev)
+	state.SetSender(func(msg tea.Msg) {
+		select {
+		case e.messages <- msg:
+		case <-e.done:
+		}
 	})
-	go func() { _ = state.S.App.Run() }()
-	t.Cleanup(func() { state.S.App.Stop() })
-	time.Sleep(100 * time.Millisecond)
-	// Run re-initialises the screen, so resize afterwards.
-	e.sim.SetSize(320, 50)
-	_ = e.sim.PostEvent(tcell.NewEventResize(320, 50))
+	e.update(tea.WindowSizeMsg{Width: 320, Height: 50})
 
 	e.onUI(func() { documents.LoadDatabases(nil) })
-	metrics.Start(500 * time.Millisecond)
+	stopMetrics := metrics.Start(500*time.Millisecond, state.Post, func(snapshot metrics.Snapshot) {
+		e.snapshot = snapshot
+		e.model.SetSnapshot(snapshot)
+	})
+	t.Cleanup(func() { stopMetrics(); state.Shutdown(); close(e.done) })
 	e.waitFor("database list", func() bool {
-		for _, n := range state.S.DbVisible {
-			if n == e.dbName {
+		for _, entry := range state.S.AllDBItems {
+			if entry.Name == e.dbName {
 				return true
 			}
 		}
@@ -273,13 +310,13 @@ func TestEndToEnd(t *testing.T) {
 
 	t.Run("collection list has no duplicates", func(t *testing.T) {
 		var before, after int
-		e.onUI(func() { before = s.CollList.GetItemCount() })
+		e.onUI(func() { before = len(s.AllCollItems) })
 		e.onUI(func() { documents.SelectDatabase(e.dbName, nil) })
 		e.waitFor("collections", func() bool { return len(s.AllCollItems) == before })
 		e.onUI(func() { documents.Refresh() })
 		e.idle()
 		e.waitFor("collections", func() bool { return len(s.AllCollItems) == before })
-		e.onUI(func() { after = s.CollList.GetItemCount() })
+		e.onUI(func() { after = len(s.AllCollItems) })
 		if after != before {
 			t.Errorf("collection list grew from %d to %d", before, after)
 		}
@@ -325,7 +362,7 @@ func TestEndToEnd(t *testing.T) {
 		e.query(`db.b.findOne({_id: 1})`)
 		e.waitFor("findOne", func() bool { return s.ResultLabel != "" })
 		e.onUI(func() { documents.CollapseDocument(); documents.DeleteDocumentConfirm() })
-		e.key(tcell.KeyEnter, 0)
+		e.key("rune", 'y')
 		e.waitFor("delete", func() bool { return len(s.CurrentDocs) == 0 })
 		if e.count("a", bson.D{{Key: "_id", Value: 1}}) != 1 || e.count("b", bson.D{{Key: "_id", Value: 1}}) != 0 {
 			t.Error("delete hit the wrong collection")
@@ -337,9 +374,9 @@ func TestEndToEnd(t *testing.T) {
 		e.query(`db.a.aggregate([{$group: {_id: "$src", n: {$sum: 1}}}])`)
 		e.waitFor("aggregate", func() bool { return s.ResultLabel != "" })
 		e.onUI(func() { documents.DeleteDocumentConfirm() })
-		var front string
-		e.onUI(func() { front, _ = s.RootPages.GetFrontPage() })
-		if front == "confirm" {
+		var confirmed bool
+		e.onUI(func() { confirmed = s.Confirm != nil })
+		if confirmed {
 			t.Error("delete prompt offered for aggregate output")
 		}
 		e.query(`db.a.find({}, {src: 1})`)
@@ -361,7 +398,7 @@ func TestEndToEnd(t *testing.T) {
 		}
 
 		script := filepath.Join(t.TempDir(), "ed.sh")
-		_ = os.WriteFile(script, []byte("#!/bin/sh\nsed -i.bak 's/\"z\": 1,/\"z\": 2,/' \"$1\"\n"), 0700)
+		_ = os.WriteFile(script, []byte("#!/bin/sh\nsed -i.bak 's/\"z\": 1,/\"z\": 2,/' \"$1\"\nrm -f \"$1.bak\"\n"), 0700)
 		t.Setenv("VISUAL", script)
 		e.onUI(func() { documents.EditDocument() })
 		e.waitFor("saved", func() bool {
@@ -386,8 +423,10 @@ func TestEndToEnd(t *testing.T) {
 
 	t.Run("document text is not interpreted as markup", func(t *testing.T) {
 		e.openColl("items")
-		e.onUI(func() { ui.ToggleWideMode() })
-		defer e.onUI(func() { ui.ToggleWideMode() })
+		e.key("rune", 'W')
+		e.key("rune", 'v')
+		defer e.key("rune", 'W')
+		defer e.key("rune", 'v')
 		scr := e.screen()
 		if !strings.Contains(scr, `"tags": ["x"]`) || !strings.Contains(scr, `"label": "[red]hi"`) {
 			t.Errorf("list row rendered incorrectly:\n%s", scr)
@@ -397,44 +436,40 @@ func TestEndToEnd(t *testing.T) {
 	t.Run("doc search keeps syntax highlighting", func(t *testing.T) {
 		e.openColl("items")
 		e.onUI(func() { documents.ExpandDocument(0) })
-		e.key(tcell.KeyRune, '/')
+		e.key("rune", '/')
 		e.typeText("hi")
-		var label, text string
-		e.onUI(func() { label = s.DocSearchBar.GetLabel() })
-		if !strings.Contains(label, "(1)") {
-			t.Errorf("search label = %q", label)
+		if !strings.Contains(e.screen(), "1/1") {
+			t.Errorf("search match not shown: %s", e.screen())
 		}
-		e.key(tcell.KeyEscape, 0)
-		e.onUI(func() { text = s.DocDetail.GetText(false) })
-		if !strings.Contains(text, "[aqua:-]") {
-			t.Error("highlighting lost after search")
+		e.key("esc", 0)
+		if !strings.Contains(e.model.View().Content, "\x1b[") {
+			t.Error("syntax highlighting lost after search")
 		}
 		e.onUI(func() { documents.CollapseDocument() })
 	})
 
-	t.Run("sort form receives typed keys", func(t *testing.T) {
+	t.Run("sort prompt receives typed keys", func(t *testing.T) {
 		e.openColl("a")
 		e.onUI(func() { documents.PromptSort() })
 		e.typeText("status q")
 		var got string
-		// onUI would time out if 'q' had stopped the application.
-		e.onUI(func() { got = s.SortForm.GetFormItemByLabel("Sort field").(*tview.InputField).GetText() })
-		if got != "status q" {
+		e.onUI(func() { got = e.model.PromptText() })
+		if got != "sort status q" || s.Quit {
 			t.Errorf("sort field = %q", got)
 		}
-		e.key(tcell.KeyEscape, 0)
+		e.key("esc", 0)
 	})
 
 	t.Run("compound _id deletes and modal buttons", func(t *testing.T) {
 		e.openColl("comp")
 		for i := 0; i < 10; i++ {
-			e.onUI(func() { s.DocList.SetCurrentItem(0); documents.DeleteDocumentConfirm() })
+			e.onUI(func() { s.Cursor = 0; documents.DeleteDocumentConfirm() })
 			if i == 3 {
-				if n := strings.Count(e.screen(), "Cancel"); n != 1 {
-					t.Errorf("confirm modal shows %d Cancel buttons, want 1", n)
+				if n := strings.Count(e.screen(), "y/N"); n < 1 {
+					t.Errorf("confirm lacks y/N: %s", e.screen())
 				}
 			}
-			e.key(tcell.KeyEnter, 0)
+			e.key("rune", 'y')
 			e.idle()
 		}
 		if n := e.count("comp", bson.D{}); n != 10 {
@@ -446,14 +481,14 @@ func TestEndToEnd(t *testing.T) {
 		e.openColl("a")
 		var prompted interface{}
 		e.onUI(func() {
-			s.DocList.SetCurrentItem(0)
+			s.Cursor = 0
 			prompted, _ = mjson.Get(s.CurrentDocs[0], "_id")
 			documents.DeleteDocumentConfirm()
 		})
 		_, _ = e.db.Collection("a").InsertOne(context.Background(), bson.D{{Key: "_id", Value: int32(0)}})
 		e.onUI(func() { documents.ReloadDocuments() })
 		e.idle()
-		e.key(tcell.KeyEnter, 0)
+		e.key("rune", 'y')
 		e.idle()
 		if e.count("a", bson.D{{Key: "_id", Value: prompted}}) != 0 || e.count("a", bson.D{{Key: "_id", Value: 0}}) != 1 {
 			t.Error("deleted a different document than the one prompted")
@@ -475,8 +510,8 @@ func TestEndToEnd(t *testing.T) {
 			return v == id
 		})
 		var page string
-		e.onUI(func() { page, _ = s.DocPages.GetFrontPage() })
-		if page != "detail" {
+		e.onUI(func() { page = s.View })
+		if page != "tree" {
 			t.Errorf("live reload switched view to %q", page)
 		}
 		e.onUI(func() { documents.StopLiveMode() })
@@ -486,7 +521,7 @@ func TestEndToEnd(t *testing.T) {
 	t.Run("aggregate with $out", func(t *testing.T) {
 		e.openColl("b")
 		e.query(`db.b.aggregate([{$match: {}}, {$out: "b_copy"}])`)
-		e.waitFor("aggregate", func() bool { return strings.Contains(state.S.DocDetail.GetText(true), "b_copy") })
+		e.waitFor("aggregate", func() bool { return strings.Contains(mjson.Join(state.S.DetailTokens), "b_copy") })
 		if n := e.count("b_copy", bson.D{}); n == 0 {
 			t.Error("$out wrote nothing")
 		}
@@ -589,15 +624,15 @@ func TestEndToEnd(t *testing.T) {
 	t.Run("viewing indexes doesn't change the browsed collection", func(t *testing.T) {
 		e.openColl("a")
 		e.onUI(func() {
-			s.App.SetFocus(s.CollList)
+			s.Focus = "sidebar"
 			documents.SelectCollectionInList("b")
 		})
-		e.key(tcell.KeyRune, 'I')
+		e.key("rune", 'I')
 		e.waitFor("indexes", func() bool { return s.IndexesNS.Coll == "b" })
 		if v := e.snap(); v.CurrentColl != "a" || v.DocsNS.Coll != "a" {
 			t.Errorf("current=%s docs=%s, want a", v.CurrentColl, v.DocsNS.Coll)
 		}
-		e.key(tcell.KeyEscape, 0)
+		e.key("esc", 0)
 	})
 
 	t.Run("filtered counts are exact and async", func(t *testing.T) {
@@ -635,23 +670,23 @@ func TestEndToEnd(t *testing.T) {
 
 	t.Run("stats and metrics", func(t *testing.T) {
 		e.onUI(func() { documents.ShowStats() })
-		e.waitFor("stats", func() bool { return strings.Contains(s.StatsView.GetText(true), "Active Operations") })
-		e.waitFor("metrics", func() bool { return strings.Contains(s.MetricsBar.GetText(true), "MongoDB v") })
+		e.waitFor("stats", func() bool { return strings.Contains(s.StatsText, "Active Operations") })
+		e.waitFor("metrics", func() bool { return e.snapshot.Connected && e.snapshot.Version != "" })
 		if strings.Contains(e.snap().Metrics, "disconnected") {
 			t.Error("metrics bar reports disconnected")
 		}
-		e.key(tcell.KeyEscape, 0)
+		e.key("esc", 0)
 	})
 
 	t.Run("filter mode lets global keys be typed", func(t *testing.T) {
-		e.onUI(func() { s.App.SetFocus(s.CollList) })
+		e.onUI(func() { s.Focus = "sidebar" })
 		e.typeText("/qW")
 		var text string
-		e.onUI(func() { text = s.CollFilterText })
+		e.onUI(func() { text = e.model.SidebarFilter() })
 		if text != "qW" {
 			t.Errorf("filter text = %q", text)
 		}
-		e.key(tcell.KeyEscape, 0)
+		e.key("esc", 0)
 	})
 }
 

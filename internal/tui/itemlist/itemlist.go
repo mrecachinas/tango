@@ -1,6 +1,6 @@
-// Package listview provides a body-only list. The root should call Handles
+// Package itemlist provides a body-only list. The root should call Handles
 // before Update: a nil command can still mean that a navigation key was consumed.
-package listview
+package itemlist
 
 import (
 	"strings"

@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/rivo/tview"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/term"
 
@@ -15,7 +16,8 @@ import (
 	"tango/internal/documents"
 	"tango/internal/metrics"
 	"tango/internal/state"
-	"tango/internal/ui"
+	"tango/internal/theme"
+	"tango/internal/tui"
 	"tango/internal/version"
 )
 
@@ -49,6 +51,11 @@ func main() {
 	}
 
 	// Precedence: command-line flag > environment > profile > default.
+	skin, err := config.LoadTheme()
+	if err != nil {
+		fatalf("loading theme: %s", err)
+	}
+	cfg.Theme = skin
 	changed := flag.CommandLine.Changed
 	if profileName != "" {
 		profile, err := config.LoadProfile(profileName)
@@ -66,6 +73,7 @@ func main() {
 		setStr("mongo-user", &cfg.MongoUser, profile.MongoUser)
 		setStr("mongo-password", &cfg.MongoPassword, profile.MongoPassword)
 		setStr("auth-source", &cfg.AuthSource, profile.AuthSource)
+		cfg.Theme = profile.Theme
 		if !changed("mongo-port") && profile.MongoPort != 0 {
 			cfg.MongoPort = profile.MongoPort
 		}
@@ -96,6 +104,15 @@ func main() {
 		refresh = 500 * time.Millisecond
 	}
 	timeout := time.Duration(timeoutSecs) * time.Second
+	dark := true
+	if cfg.Theme.Name == "auto" && os.Getenv("NO_COLOR") == "" {
+		dark = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+	}
+	styledTheme, err := theme.Load(cfg.Theme, dark)
+	if err != nil {
+		fatalf("loading theme: %s", err)
+	}
+	theme.Set(styledTheme)
 
 	client, hostLabel, err := db.Connect(cfg, timeout)
 	if err != nil {
@@ -118,19 +135,23 @@ func main() {
 	s := state.S
 	state.LoadState()
 
-	s.App = tview.NewApplication()
-	ui.BuildUI()
+	state.SetSender(nil)
+	model := tui.New()
+	p := tea.NewProgram(model)
+	state.SetSender(p.Send)
 	if privErr != nil {
 		state.FlashError("Couldn't read privileges (" + privErr.Error() + "); write operations disabled")
 	}
 	documents.LoadDatabases(func() { documents.RestoreSession(s.LastDB, s.LastCollection) })
-	metrics.Start(refresh)
+	stopMetrics := metrics.Start(refresh, state.Post, model.SetSnapshot)
 
-	if err := s.App.Run(); err != nil {
+	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running application: %s\n", err)
 	}
 
 	state.SaveState()
+	stopMetrics()
+	state.Shutdown()
 
 	disconnectCtx, disconnectCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer disconnectCancel()

@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -87,7 +86,7 @@ func Export(format string, all bool, path string) {
 			state.ShowError(fmt.Sprintf("Export failed: %s", err))
 			return
 		}
-		state.FlashStatus(fmt.Sprintf(" [green]Exported %d docs (%s) to %s", n, scope, tview.Escape(path)))
+		state.FlashStatus(fmt.Sprintf("Exported %d docs (%s) to %s", n, scope, path))
 		return
 	}
 
@@ -134,20 +133,20 @@ func Export(format string, all bool, path string) {
 				if time.Since(last) > 500*time.Millisecond {
 					last = time.Now()
 					count := n
-					s.App.QueueUpdateDraw(func() { state.UpdateLoading(tok, fmt.Sprintf("Exporting %s: %d docs", ns, count)) })
+					state.Post(func() { state.UpdateLoading(tok, fmt.Sprintf("Exporting %s: %d docs", ns, count)) })
 				}
 				return d, true, nil
 			}
 			n, err = writeExport(format, path, next)
 			_ = cur.Close(ctx)
 		}
-		s.App.QueueUpdateDraw(func() {
+		state.Post(func() {
 			state.EndLoading(tok)
 			if err != nil {
 				state.ShowError(fmt.Sprintf("Export failed after %d docs: %s", n, err))
 				return
 			}
-			state.FlashStatus(fmt.Sprintf(" [green]Exported %d docs (all matching) to %s", n, tview.Escape(path)))
+			state.FlashStatus(fmt.Sprintf("Exported %d docs (all matching) to %s", n, path))
 		})
 	}()
 }

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -53,30 +52,31 @@ func ShowStats() {
 	s := state.S
 	s.StatsEpoch++
 	epoch := s.StatsEpoch
-	if s.StatsView.GetText(false) == "" {
-		s.StatsView.SetText("[gray]loading…")
+	if s.StatsText == "" {
+		s.StatsText = "loading…"
+		s.StatsRevision++
 	}
-	s.DocPages.SwitchToPage("stats")
-	s.App.SetFocus(s.StatsView)
-	state.RefreshPanelBorders()
+	s.View, s.Focus = "stats", "content"
+	if s.StatsStopCh != nil {
+		close(s.StatsStopCh)
+	}
+	stop := make(chan struct{})
+	s.StatsStopCh = stop
 	RefreshStats(true)
 
 	interval := refreshInterval()
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			stop := make(chan bool, 1)
-			s.App.QueueUpdateDraw(func() {
-				name, _ := s.DocPages.GetFrontPage()
-				if s.StatsEpoch != epoch || name != "stats" {
-					stop <- true
-					return
-				}
-				RefreshStats(false)
-				stop <- false
-			})
-			if <-stop {
+		for {
+			select {
+			case <-ticker.C:
+				state.Post(func() {
+					if s.StatsEpoch == epoch && s.View == "stats" {
+						RefreshStats(false)
+					}
+				})
+			case <-stop:
 				return
 			}
 		}
@@ -159,13 +159,13 @@ func compactCmd(v interface{}, n int) string {
 	if v == nil {
 		return ""
 	}
-	return tview.Escape(truncate(strings.ReplaceAll(mjson.Compact(v), "\n", " "), n))
+	return truncate(strings.ReplaceAll(mjson.Compact(v), "\n", " "), n)
 }
 
 func renderStats(d statsData) {
 	s := state.S
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "[gray]Updated %s · auto-refresh every %s · [yellow]r[gray] refresh incl. profiler · [yellow]:killop <opid>[gray] to kill[white]\n\n",
+	fmt.Fprintf(&buf, "Updated %s · auto-refresh every %s · r refresh incl. profiler · :killop <opid> to kill\n\n",
 		d.at.Format("15:04:05"), refreshInterval())
 
 	// Active operations
@@ -192,21 +192,21 @@ func renderStats(d statsData) {
 		rows = append(rows, opRow{opid: opid, typ: typ, ns: ns, client: cl, cmd: compactCmd(op["command"], 80), secs: secs})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].secs > rows[j].secs })
-	fmt.Fprintf(&buf, "[aqua]━━━ Active Operations (%d) ━━━[white]\n\n", len(rows))
+	fmt.Fprintf(&buf, "Active Operations (%d)\n\n", len(rows))
 	switch {
 	case d.opsErr != nil:
-		fmt.Fprintf(&buf, "  [red]Error: %s[white]\n  (may require the inprog privilege)\n", tview.Escape(d.opsErr.Error()))
+		fmt.Fprintf(&buf, "  Error: %s\n  (may require the inprog privilege)\n", d.opsErr)
 	case len(rows) == 0:
-		buf.WriteString("  [gray](no active operations)[white]\n")
+		buf.WriteString("  (no active operations)\n")
 	default:
-		fmt.Fprintf(&buf, "  [gray]%-14s %-9s %-32s %8s  %-21s %s[white]\n", "OPID", "TYPE", "NAMESPACE", "SECS", "CLIENT", "COMMAND")
+		fmt.Fprintf(&buf, "  %-14s %-9s %-32s %8s  %-21s %s\n", "OPID", "TYPE", "NAMESPACE", "SECS", "CLIENT", "COMMAND")
 		for i, r := range rows {
 			if i == 50 {
-				fmt.Fprintf(&buf, "  [gray]… %d more[white]\n", len(rows)-50)
+				fmt.Fprintf(&buf, "  … %d more\n", len(rows)-50)
 				break
 			}
-			fmt.Fprintf(&buf, "  [yellow]%-14s[white] %-9s %-32s %8.0f  %-21s %s\n",
-				tview.Escape(r.opid), tview.Escape(r.typ), tview.Escape(truncate(r.ns, 32)), r.secs, tview.Escape(r.client), r.cmd)
+			fmt.Fprintf(&buf, "  %-14s %-9s %-32s %8.0f  %-21s %s\n",
+				r.opid, r.typ, truncate(r.ns, 32), r.secs, r.client, r.cmd)
 		}
 	}
 
@@ -214,8 +214,8 @@ func renderStats(d statsData) {
 	buf.WriteString("\n")
 	switch {
 	case d.topErr != nil:
-		buf.WriteString("[aqua]━━━ Top Collections ━━━[white]\n\n")
-		fmt.Fprintf(&buf, "  [red]Error: %s[white]\n  (top is only available on mongod and needs the top privilege)\n", tview.Escape(d.topErr.Error()))
+		buf.WriteString("Top Collections\n\n")
+		fmt.Fprintf(&buf, "  Error: %s\n  (top is only available on mongod and needs the top privilege)\n", d.topErr)
 	default:
 		renderTop(&buf, d)
 	}
@@ -223,11 +223,11 @@ func renderStats(d statsData) {
 	// Slow queries
 	if d.profileFetched {
 		var pb strings.Builder
-		fmt.Fprintf(&pb, "[aqua]━━━ Slow Queries (profiler, top 10 across %d database(s)) ━━━[white]\n\n", d.profileDBs)
+		fmt.Fprintf(&pb, "Slow Queries (profiler, top 10 across %d database(s))\n\n", d.profileDBs)
 		if len(d.profiles) == 0 {
-			pb.WriteString("  [gray]No profiler data. Enable with db.setProfilingLevel(1) in the databases you care about.[white]\n")
+			pb.WriteString("  No profiler data. Enable with db.setProfilingLevel(1) in the databases you care about.\n")
 		} else {
-			fmt.Fprintf(&pb, "  [gray]%-8s %-9s %-40s %-20s %s[white]\n", "MILLIS", "TYPE", "NAMESPACE", "WHEN", "COMMAND")
+			fmt.Fprintf(&pb, "  %-8s %-9s %-40s %-20s %s\n", "MILLIS", "TYPE", "NAMESPACE", "WHEN", "COMMAND")
 			for _, p := range d.profiles {
 				ms, _ := state.ToFloat64(p["millis"])
 				typ, _ := p["op"].(string)
@@ -240,8 +240,8 @@ func renderStats(d statsData) {
 				if cmd == nil {
 					cmd = p["query"]
 				}
-				fmt.Fprintf(&pb, "  [yellow]%-8.0f[white] %-9s %-40s %-20s %s\n",
-					ms, tview.Escape(typ), tview.Escape(truncate(ns, 40)), when, compactCmd(cmd, 80))
+				fmt.Fprintf(&pb, "  %-8.0f %-9s %-40s %-20s %s\n",
+					ms, typ, truncate(ns, 40), when, compactCmd(cmd, 80))
 			}
 		}
 		profileSection = pb.String()
@@ -249,9 +249,8 @@ func renderStats(d statsData) {
 	buf.WriteString("\n")
 	buf.WriteString(profileSection)
 
-	row, col := s.StatsView.GetScrollOffset()
-	s.StatsView.SetText(buf.String())
-	s.StatsView.ScrollTo(row, col)
+	s.StatsText = buf.String()
+	s.StatsRevision++
 }
 
 func renderTop(buf *strings.Builder, d statsData) {
@@ -307,17 +306,17 @@ func renderTop(buf *strings.Builder, d statsData) {
 		rows = rows[:10]
 	}
 	if haveRates {
-		fmt.Fprintf(buf, "[aqua]━━━ Top Collections (last %.0fs) ━━━[white]\n\n", elapsed)
+		fmt.Fprintf(buf, "Top Collections (last %.0fs)\n\n", elapsed)
 	} else {
-		buf.WriteString("[aqua]━━━ Top Collections (cumulative since startup; rates from next refresh) ━━━[white]\n\n")
+		buf.WriteString("Top Collections (cumulative since startup; rates from next refresh)\n\n")
 	}
 	if len(rows) == 0 {
-		buf.WriteString("  [gray](no collection activity)[white]\n")
+		buf.WriteString("  (no collection activity)\n")
 		return
 	}
-	fmt.Fprintf(buf, "  [gray]%-44s %10s %10s %14s[white]\n", "NAMESPACE", "OPS/S", "AVG MS", "TOTAL OPS")
+	fmt.Fprintf(buf, "  %-44s %10s %10s %14s\n", "NAMESPACE", "OPS/S", "AVG MS", "TOTAL OPS")
 	for _, r := range rows {
-		fmt.Fprintf(buf, "  [yellow]%-44s[white] %10.1f %10.2f %14d\n", tview.Escape(truncate(r.ns, 44)), r.rate, r.avgMs, r.total)
+		fmt.Fprintf(buf, "  %-44s %10.1f %10.2f %14d\n", truncate(r.ns, 44), r.rate, r.avgMs, r.total)
 	}
 }
 
@@ -339,8 +338,11 @@ func KillOpConfirm(arg string) {
 			return
 		}
 	}
-	back := s.App.GetFocus()
-	confirm(s.ConfirmModal, "confirm", fmt.Sprintf("Kill operation %s?", arg), "Kill", back, func() {
+	if s.ReadOnly {
+		state.ShowError("Read-only mode: killOp is disabled")
+		return
+	}
+	confirm("killop", fmt.Sprintf("Kill operation %s?", arg), "", func() {
 		admin := s.Client.Database("admin")
 		state.Async("Killing operation", func(ctx context.Context) func() {
 			err := admin.RunCommand(ctx, bson.D{{Key: "killOp", Value: 1}, {Key: "op", Value: raw}}).Err()
@@ -349,8 +351,8 @@ func KillOpConfirm(arg string) {
 					state.FlashError("killOp failed: " + err.Error())
 					return
 				}
-				state.FlashStatus(" [green]Kill requested for op " + tview.Escape(arg))
-				if name, _ := s.DocPages.GetFrontPage(); name == "stats" {
+				state.FlashStatus("Kill requested for op " + arg)
+				if s.View == "stats" {
 					RefreshStats(false)
 				}
 			}

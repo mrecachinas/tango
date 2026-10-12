@@ -28,7 +28,7 @@ func CopyToClipboard() {
 				state.FlashError("Clipboard error: " + err.Error())
 				return
 			}
-			state.FlashStatus(" [green]Copied to clipboard")
+			state.FlashStatus("Copied to clipboard")
 		}
 	})
 }
