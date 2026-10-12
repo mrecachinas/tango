@@ -115,3 +115,17 @@ func TestAutocompletePreservesNames(t *testing.T) {
 		t.Errorf("raw = %q", raw)
 	}
 }
+
+func TestExecuteQueryPreservesQueryTextForCommands(t *testing.T) {
+	state.S = &state.AppState{QueryText: `{a: 1}`}
+	for _, cmd := range []string{":limit", ":sort name", "  :q  "} {
+		ExecuteQuery(cmd)
+		if state.S.QueryText != `{a: 1}` {
+			t.Fatalf("%q overwrote QueryText: %q", cmd, state.S.QueryText)
+		}
+	}
+	ExecuteQuery(` {b: 2} `)
+	if state.S.QueryText != `{b: 2}` {
+		t.Fatalf("filter not saved: %q", state.S.QueryText)
+	}
+}

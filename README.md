@@ -3,7 +3,7 @@
 A k9s-inspired TUI for MongoDB. Browse databases, query collections, manage documents — all from your terminal.
 Built with Bubble Tea v2, Lip Gloss v2 and Bubbles v2.
 
-![Go](https://img.shields.io/badge/Go-1.23-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-4.x--8.x-green)
+![Go](https://img.shields.io/badge/Go-1.26-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-4.x--8.x-green)
 
 ![tango screenshot](docs/screenshot.png)
 

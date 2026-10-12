@@ -48,8 +48,7 @@ func DropDatabaseConfirm() {
 	if name == "" {
 		return
 	}
-	if s.ReadOnly || !s.Privileges.Can("dropDatabase", name, "") {
-		state.ShowError("Not permitted to drop database " + name)
+	if !state.CheckWrite(state.ActDropDatabase, state.Namespace{DB: name}) {
 		return
 	}
 	confirm("drop-database", "Drop database '"+name+"'? This cannot be undone!", name, func() {

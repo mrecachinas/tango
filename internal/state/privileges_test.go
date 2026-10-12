@@ -73,3 +73,22 @@ func TestPrivilegesCustomRoleAndReadOnly(t *testing.T) {
 		t.Error("anyResource should cover system collections")
 	}
 }
+
+func TestPrivilegesDropDatabaseOnly(t *testing.T) {
+	p := ParsePrivileges(statusWith(priv(bson.M{"db": "app", "collection": ""}, "find", ActDropDatabase)))
+	if !p.AnyWrite() {
+		t.Error("dropDatabase-only user reported as read-only")
+	}
+	if !p.Can(ActDropDatabase, "app", "") || p.Can(ActDropDatabase, "other", "") {
+		t.Error("dropDatabase should be scoped to its database")
+	}
+}
+
+func TestNamespaceString(t *testing.T) {
+	if got := (Namespace{DB: "app"}).String(); got != "app" {
+		t.Errorf("db-only namespace = %q", got)
+	}
+	if got := (Namespace{DB: "app", Coll: "users"}).String(); got != "app.users" {
+		t.Errorf("namespace = %q", got)
+	}
+}

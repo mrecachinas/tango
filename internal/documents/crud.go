@@ -30,9 +30,16 @@ func truncate(s string, n int) string {
 
 // DeleteDocumentConfirm asks to delete the selected documents (or the one
 // under the cursor). The _ids and namespace are captured now, so reloads
-// while the prompt is open can't change what gets deleted.
+// while the prompt is open can't change what gets deleted. Like the d key, it
+// only works from the document list: elsewhere the list cursor and selection
+// are hidden.
 func DeleteDocumentConfirm() {
 	s := state.S
+	switch s.View {
+	case "detail", "tree", "indexes", "stats":
+		state.FlashStatus("Delete works from the document list; press Esc to go back")
+		return
+	}
 	if !s.DocsDeletable {
 		state.ShowError("These results aren't stored documents (e.g. aggregation output), so they can't be deleted from here.")
 		return
@@ -100,11 +107,20 @@ func deleteByIDs(ns state.Namespace, ids bson.A) {
 }
 
 // currentDoc returns the document an edit applies to: the one open in the
-// detail/tree view, else the one under the list cursor.
+// detail/tree view, else the one under the list cursor. Detail views showing
+// something other than a document (index details, errors, ...) and the
+// indexes/stats pages have no current document; the hidden list cursor must
+// not be used there.
 func currentDoc() (bson.D, state.Namespace, bool) {
 	s := state.S
-	if (s.View == "detail" || s.View == "tree") && s.ExpandedDoc != nil {
+	switch s.View {
+	case "detail", "tree":
+		if s.ExpandedDoc == nil {
+			return nil, state.Namespace{}, false
+		}
 		return s.ExpandedDoc, s.ExpandedNS, s.ExpandedEditable
+	case "indexes", "stats":
+		return nil, state.Namespace{}, false
 	}
 	if idx := s.Cursor; idx >= 0 && idx < len(s.CurrentDocs) {
 		return s.CurrentDocs[idx], s.DocsNS, s.DocsEditable

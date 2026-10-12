@@ -36,7 +36,10 @@ func setBrowseQuery(filter, projection, sort bson.D, skip, limit int64) {
 func ExecuteQuery(queryStr string) {
 	s := state.S
 	queryStr = strings.TrimSpace(queryStr)
-	s.QueryText = queryStr
+	// Commands must not replace the filter that "/" prefills.
+	if !strings.HasPrefix(queryStr, ":") {
+		s.QueryText = queryStr
+	}
 
 	if queryStr == "" {
 		if s.CurrentDB != "" && s.CurrentColl != "" {

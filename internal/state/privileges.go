@@ -28,9 +28,10 @@ const (
 	ActRemove         = "remove"
 	ActDropCollection = "dropCollection"
 	ActDropIndex      = "dropIndex"
+	ActDropDatabase   = "dropDatabase"
 )
 
-var writeActions = []string{ActInsert, ActUpdate, ActRemove, ActDropCollection, ActDropIndex}
+var writeActions = []string{ActInsert, ActUpdate, ActRemove, ActDropCollection, ActDropIndex, ActDropDatabase}
 
 // ParsePrivileges extracts privileges from a connectionStatus reply
 // (run with showPrivileges: true). It returns nil when no user is

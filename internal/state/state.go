@@ -45,7 +45,12 @@ type Namespace struct {
 	Coll string
 }
 
-func (n Namespace) String() string { return n.DB + "." + n.Coll }
+func (n Namespace) String() string {
+	if n.Coll == "" {
+		return n.DB
+	}
+	return n.DB + "." + n.Coll
+}
 
 // PageStart is the _id after which a keyset-paged page begins.
 type PageStart struct {
