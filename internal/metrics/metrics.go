@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,12 +14,41 @@ import (
 
 const (
 	SparkWidth      = 20
-	gaugeWidth      = 15
 	DefaultInterval = 2 * time.Second
 	replRecheck     = 30 * time.Second
 )
 
-var sparkChars = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
+// Snapshot is a plain, immutable copy of the latest sample and rolling history.
+// The sink receives it on the UI goroutine; it contains no terminal markup.
+type Snapshot struct {
+	HostLabel, Version                       string
+	Uptime                                   time.Duration
+	Connected, ReadOnly                      bool
+	Err                                      error
+	DBCount, CollectionCount                 int
+	OpsPerSec                                float64
+	ConnectionsCurrent, ConnectionsAvailable int
+	PingMS, MemoryMB                         float64
+	NetInKBPerSec, NetOutKBPerSec            float64
+	Queue, Cursors                           float64
+	CachePercent, TicketsPercent             float64
+	ReplicaSet                               *ReplicaSetInfo
+	History                                  Histories
+}
+
+type ReplicaSetInfo struct {
+	Name             string
+	Members, Healthy int
+	WorstLagMS       float64
+	WorstMember      string
+}
+
+// Histories are ordered oldest to newest, with at most SparkWidth samples.
+type Histories struct {
+	Ops, Connections, Ping, Memory []float64
+	NetIn, NetOut, Queue, Cursors  []float64
+	Cache, Tickets                 []float64
+}
 
 // serverStatus sections tango doesn't use; excluding them keeps each poll small.
 var excludedSections = []string{
@@ -36,6 +65,7 @@ var excludedSections = []string{
 
 // replInfo summarises replSetGetStatus.
 type replInfo struct {
+	name        string
 	worstLagMs  float64
 	worstMember string
 	members     int
@@ -54,19 +84,20 @@ type sample struct {
 
 // model holds metric history; only touched on the UI goroutine.
 type model struct {
-	ops, conn, mem, ping, queue, netIn, cursors *state.RollingBuffer
-	prevOps, prevNetIn                          float64
-	prevAt                                      time.Time
-	havePrev                                    bool
-	last                                        sample
+	ops, conn, mem, ping, queue, netIn, netOut, cursors, cache, tickets *state.RollingBuffer
+	prevOps, prevNetIn, prevNetOut                                      float64
+	prevAt                                                              time.Time
+	havePrev, haveOps, haveNetIn, haveNetOut                            bool
+	last                                                                sample
 }
 
 func newModel() *model {
 	nb := func() *state.RollingBuffer { return state.NewRollingBuffer(SparkWidth) }
-	return &model{ops: nb(), conn: nb(), mem: nb(), ping: nb(), queue: nb(), netIn: nb(), cursors: nb()}
+	return &model{
+		ops: nb(), conn: nb(), mem: nb(), ping: nb(), queue: nb(),
+		netIn: nb(), netOut: nb(), cursors: nb(), cache: nb(), tickets: nb(),
+	}
 }
-
-var m = newModel()
 
 type poller struct {
 	client   *mongo.Client
@@ -76,7 +107,11 @@ type poller struct {
 }
 
 func (p *poller) fetch() sample {
-	smp := sample{at: time.Now()}
+	smp := sample{at: time.Now(), version: p.version}
+	if p.client == nil {
+		smp.err = errors.New("no MongoDB client")
+		return smp
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()
 	admin := p.client.Database("admin")
@@ -121,6 +156,7 @@ func (p *poller) fetch() sample {
 func summarizeRepl(rs bson.M) *replInfo {
 	members, _ := rs["members"].(bson.A)
 	info := &replInfo{members: len(members)}
+	info.name, _ = rs["set"].(string)
 	var primary time.Time
 	type sec struct {
 		name string
@@ -165,10 +201,16 @@ func summarizeRepl(rs bson.M) *replInfo {
 
 // apply folds a sample into the metric history using the real elapsed time.
 func (m *model) apply(smp sample) {
-	m.last = smp
 	if smp.err != nil {
+		// Preserve the last good values while reporting the connection error.
+		smp.ss, smp.repl = m.last.ss, m.last.repl
+		if smp.version == "" {
+			smp.version = m.last.version
+		}
+		m.last = smp
 		return
 	}
+	m.last = smp
 	ss := smp.ss
 	elapsed := smp.at.Sub(m.prevAt).Seconds()
 	rate := func(cur, prev float64) float64 {
@@ -180,16 +222,21 @@ func (m *model) apply(smp sample) {
 	}
 
 	opsTotal, haveOps := sumOpcounters(ss)
-	netIn, haveNet := networkBytesIn(ss)
+	netIn, haveNetIn := networkBytesIn(ss)
+	netOut, haveNetOut := networkBytesOut(ss)
 	if m.havePrev && elapsed > 0 {
-		if haveOps {
+		if haveOps && m.haveOps {
 			m.ops.Push(rate(opsTotal, m.prevOps))
 		}
-		if haveNet {
+		if haveNetIn && m.haveNetIn {
 			m.netIn.Push(rate(netIn, m.prevNetIn) / 1024)
 		}
+		if haveNetOut && m.haveNetOut {
+			m.netOut.Push(rate(netOut, m.prevNetOut) / 1024)
+		}
 	}
-	m.prevOps, m.prevNetIn, m.prevAt, m.havePrev = opsTotal, netIn, smp.at, true
+	m.prevOps, m.prevNetIn, m.prevNetOut, m.prevAt = opsTotal, netIn, netOut, smp.at
+	m.havePrev, m.haveOps, m.haveNetIn, m.haveNetOut = true, haveOps, haveNetIn, haveNetOut
 
 	m.ping.Push(smp.pingMs)
 	cur, _ := extractConnections(ss)
@@ -200,6 +247,8 @@ func (m *model) apply(smp sample) {
 		}
 	}
 	m.queue.Push(queueDepth(ss))
+	m.cache.Push(extractCachePercent(ss))
+	m.tickets.Push(extractTicketsPct(ss))
 	if mt, ok := ss["metrics"].(bson.M); ok {
 		if c, ok := mt["cursor"].(bson.M); ok {
 			if open, ok := c["open"].(bson.M); ok {
@@ -211,72 +260,48 @@ func (m *model) apply(smp sample) {
 	}
 }
 
-func (m *model) render() string {
+func (m *model) snapshot() Snapshot {
 	s := state.S
 	smp := m.last
-	var indicator string
-	switch {
-	case smp.err != nil:
-		indicator = "[red]● disconnected[white] [gray](" + escape(truncate(smp.err.Error(), 80)) + ")[white]"
-	case s.ReadOnly:
-		indicator = "[yellow]◐[white] [gray](read-only)[white]"
-	default:
-		indicator = "[green]●[white]"
+	cur, avail := extractConnections(smp.ss)
+	uptime, _ := state.ToFloat64(smp.ss["uptime"])
+	out := Snapshot{
+		HostLabel: s.HostLabel, Version: smp.version, Uptime: time.Duration(uptime * float64(time.Second)),
+		Connected: smp.err == nil && smp.ss != nil, Err: smp.err, ReadOnly: s.ReadOnly,
+		DBCount: s.CachedDBCount, CollectionCount: s.CachedCollCount,
+		OpsPerSec: m.ops.Last(), ConnectionsCurrent: cur, ConnectionsAvailable: avail,
+		PingMS: m.ping.Last(), MemoryMB: m.mem.Last(),
+		NetInKBPerSec: m.netIn.Last(), NetOutKBPerSec: m.netOut.Last(),
+		Queue: m.queue.Last(), Cursors: m.cursors.Last(),
+		CachePercent: m.cache.Last(), TicketsPercent: m.tickets.Last(),
 	}
-	version := smp.version
-	if version == "" {
-		version = "?"
-	}
-	uptime := "?"
-	if smp.ss != nil {
-		uptime = extractUptime(smp.ss)
-	}
-	line1 := fmt.Sprintf(" %s %s   [gray]MongoDB[white] v%s   [gray]uptime[white] %s   [aqua]%d[white] dbs · [aqua]%d[white] collections",
-		indicator, escape(s.HostLabel), escape(version), uptime, s.CachedDBCount, s.CachedCollCount)
-
-	connCur, connAvail := extractConnections(smp.ss)
-	cachePct := extractCachePercent(smp.ss)
-	ticketsPct := extractTicketsPct(smp.ss)
-
-	const cellWidth = 36
-	sep := "  "
-	line2 := " " +
-		metricCell("ops/s", renderSparkline(m.ops.Data), fmt.Sprintf("%-8.0f", m.ops.Last()), cellWidth) + sep +
-		metricCell("conns", renderSparkline(m.conn.Data), fmt.Sprintf("%-8s", fmt.Sprintf("%d/%d", connCur, connCur+connAvail)), cellWidth) + sep +
-		metricCell("ping ", renderSparkline(m.ping.Data), fmt.Sprintf("%-8s", fmt.Sprintf("%.1fms", m.ping.Last())), cellWidth)
-	line3 := " " +
-		metricCell("mem  ", renderSparkline(m.mem.Data), fmt.Sprintf("%-8s", fmt.Sprintf("%.0fMB", m.mem.Last())), cellWidth) + sep +
-		metricGaugeCell("cache", renderGauge(cachePct), fmt.Sprintf("%-8s", fmt.Sprintf("%.0f%%", cachePct)), cellWidth) + sep +
-		metricCell("net  ", renderSparkline(m.netIn.Data), fmt.Sprintf("%-8s", fmt.Sprintf("%.0fKB/s", m.netIn.Last())), cellWidth)
-	line4 := " " +
-		metricCell("queue", renderSparkline(m.queue.Data), fmt.Sprintf("%-8.0f", m.queue.Last()), cellWidth) + sep +
-		metricCell("curs ", renderSparkline(m.cursors.Data), fmt.Sprintf("%-8.0f", m.cursors.Last()), cellWidth) + sep +
-		metricGaugeCell("tix  ", renderGauge(ticketsPct), fmt.Sprintf("%-8s", fmt.Sprintf("%.0f%%", ticketsPct)), cellWidth)
-
 	if r := smp.repl; r != nil {
-		lagColor := "[green]"
-		if r.worstLagMs > 1000 {
-			lagColor = "[yellow]"
-		}
-		if r.worstLagMs > 10000 {
-			lagColor = "[red]"
-		}
-		healthColor := "[green]"
-		if r.healthy < r.members {
-			healthColor = "[red]"
-		}
-		line4 += fmt.Sprintf("   [gray]rs %s%d/%d[gray] healthy", healthColor, r.healthy, r.members)
-		if r.worstMember != "" {
-			line4 += fmt.Sprintf(" · max lag %s%.0fms[gray] (%s)[white]", lagColor, r.worstLagMs, escape(r.worstMember))
+		out.ReplicaSet = &ReplicaSetInfo{
+			Name: r.name, Members: r.members, Healthy: r.healthy,
+			WorstLagMS: r.worstLagMs, WorstMember: r.worstMember,
 		}
 	}
-	return line1 + "\n" + line2 + "\n" + line3 + "\n" + line4
+	copyData := func(b *state.RollingBuffer) []float64 { return append([]float64(nil), b.Data...) }
+	out.History = Histories{
+		Ops: copyData(m.ops), Connections: copyData(m.conn), Ping: copyData(m.ping), Memory: copyData(m.mem),
+		NetIn: copyData(m.netIn), NetOut: copyData(m.netOut), Queue: copyData(m.queue), Cursors: copyData(m.cursors),
+		Cache: copyData(m.cache), Tickets: copyData(m.tickets),
+	}
+	return out
 }
 
-// Start polls the server every interval (immediately on start) and updates
-// the metrics bar. Network I/O happens on the poller goroutine; history is
-// updated and rendered on the UI goroutine.
-func Start(interval time.Duration) {
+func (m *model) deliver(smp sample, post func(func()), sink func(Snapshot)) {
+	post(func() {
+		m.apply(smp)
+		sink(m.snapshot())
+	})
+}
+
+// Start polls immediately and then every interval. post must enqueue its
+// closure on the UI goroutine; that closure applies history and calls sink.
+// Each Start owns independent history. Client and timeout are captured here,
+// while host label, read-only state and counts are read inside the posted closure.
+func Start(interval time.Duration, post func(func()), sink func(Snapshot)) {
 	s := state.S
 	if interval <= 0 {
 		interval = DefaultInterval
@@ -285,15 +310,13 @@ func Start(interval time.Duration) {
 	if p.timeout <= 0 || p.timeout > interval*5 {
 		p.timeout = interval * 5
 	}
+	m := newModel()
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			smp := p.fetch()
-			s.App.QueueUpdateDraw(func() {
-				m.apply(smp)
-				s.MetricsBar.SetText(m.render())
-			})
+			m.deliver(smp, post, sink)
 			<-ticker.C
 		}
 	}()

@@ -24,10 +24,7 @@ func Pane(title, info, body string, width, height int, focused bool) string {
 	if focused {
 		bs, ts = t.PaneFocused, t.TitleFocused
 	}
-	edge := lipgloss.NewStyle()
-	if c := bs.GetBorderTopForeground(); c != nil {
-		edge = edge.Foreground(c)
-	}
+	edge := lipgloss.NewStyle().Foreground(bs.GetBorderTopForeground())
 	b := lipgloss.RoundedBorder()
 	inner := width - 2
 
