@@ -3,8 +3,6 @@ package state
 import (
 	"time"
 
-	"github.com/rivo/tview"
-
 	"tango/internal/mjson"
 )
 
@@ -14,10 +12,11 @@ type loadingEntry struct {
 }
 
 type statusState struct {
-	loading  []loadingEntry
-	nextTok  int
-	flash    string
-	flashGen int
+	loading    []loadingEntry
+	nextTok    int
+	flash      string
+	flashGen   int
+	flashError bool
 }
 
 // BeginLoading shows a loading message until EndLoading is called with the
@@ -26,7 +25,6 @@ func BeginLoading(msg string) int {
 	st := &S.status
 	st.nextTok++
 	st.loading = append(st.loading, loadingEntry{tok: st.nextTok, msg: msg})
-	renderStatus()
 	return st.nextTok
 }
 
@@ -37,7 +35,6 @@ func UpdateLoading(tok int, msg string) {
 			S.status.loading[i].msg = msg
 		}
 	}
-	renderStatus()
 }
 
 func EndLoading(tok int) {
@@ -48,45 +45,40 @@ func EndLoading(tok int) {
 			break
 		}
 	}
-	renderStatus()
 }
 
-// FlashStatus shows msg (tview markup allowed) for a few seconds.
+// FlashStatus shows plain text for a few seconds.
 func FlashStatus(msg string) {
+	flash(msg, false)
+}
+
+func flash(msg string, isError bool) {
+	s := S
 	st := &S.status
 	st.flash = msg
+	st.flashError = isError
 	st.flashGen++
 	gen := st.flashGen
-	renderStatus()
-	go func() {
-		time.Sleep(3 * time.Second)
-		S.App.QueueUpdateDraw(func() {
-			if S.status.flashGen == gen {
-				S.status.flash = ""
-				renderStatus()
+	time.AfterFunc(3*time.Second, func() {
+		Post(func() {
+			if S == s && s.status.flashGen == gen {
+				s.status.flash = ""
 			}
 		})
-	}()
+	})
 }
 
 // FlashError flashes an error message in the status bar.
 func FlashError(msg string) {
-	FlashStatus(" [red]" + tview.Escape(msg))
+	flash(msg, true)
 }
 
-func renderStatus() {
-	if S.StatusBar == nil {
-		return
-	}
+func Status() (flash string, isError bool, loading string) {
 	st := &S.status
-	switch {
-	case st.flash != "":
-		S.StatusBar.SetText(st.flash)
-	case len(st.loading) > 0:
-		S.StatusBar.SetText(" [yellow]⏳ " + tview.Escape(st.loading[len(st.loading)-1].msg) + "...")
-	default:
-		S.StatusBar.SetText(S.DefaultStatusText)
+	if len(st.loading) > 0 {
+		loading = st.loading[len(st.loading)-1].msg
 	}
+	return st.flash, st.flashError, loading
 }
 
 // ShowError displays msg in the detail panel.
@@ -106,12 +98,8 @@ func SetDetail(title string, toks []mjson.Token) {
 	s.ExpandedDoc = nil
 	s.DetailBackPage = ""
 	s.DetailTokens = toks
+	s.DetailTitle = title
+	s.DetailRevision++
 	s.DocSearchTerm = ""
-	text, _ := RenderTokens(toks, "")
-	s.DocDetail.SetText(text)
-	s.DocDetail.SetTitle(title)
-	s.DocDetail.ScrollToBeginning()
-	s.DocPages.SwitchToPage("detail")
-	s.App.SetFocus(s.DocDetail)
-	RefreshPanelBorders()
+	s.View, s.Focus = "detail", "content"
 }

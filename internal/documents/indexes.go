@@ -4,12 +4,61 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"tango/internal/mjson"
 	"tango/internal/state"
 )
+
+// IndexRows keeps the common options in a stable table order without flattening
+// key patterns or partial filters. The original specs remain available in detail.
+func IndexRows(indexes []bson.D) []bson.D {
+	rows := make([]bson.D, len(indexes))
+	for i, spec := range indexes {
+		value := func(key string) any {
+			v, _ := mjson.Get(spec, key)
+			return v
+		}
+		name := value("name")
+		nameStr, _ := name.(string)
+		unique, _ := value("unique").(bool)
+		sparse, _ := value("sparse").(bool)
+		partial := value("partialFilterExpression")
+		if partial != nil {
+			partial = mjson.Compact(partial)
+		}
+		rows[i] = bson.D{
+			{Key: "name", Value: name},
+			{Key: "keys", Value: mjson.Compact(value("key"))},
+			{Key: "unique", Value: unique || nameStr == "_id_"},
+			{Key: "sparse", Value: sparse},
+			{Key: "ttl", Value: blankIfNil(value("expireAfterSeconds"))},
+			{Key: "partial", Value: blankIfNil(partial)},
+			{Key: "size", Value: blankIfNil(value("size"))},
+		}
+		for _, option := range spec {
+			switch option.Key {
+			case "name", "key", "unique", "sparse", "expireAfterSeconds", "partialFilterExpression", "size", "v":
+				continue
+			}
+			switch option.Value.(type) {
+			case bson.D, bson.M, bson.A:
+				option.Value = mjson.Compact(option.Value)
+			}
+			rows[i] = append(rows[i], option)
+		}
+	}
+	return rows
+}
+
+// blankIfNil keeps optional index columns stable while rendering absent
+// options as empty cells instead of null.
+func blankIfNil(v any) any {
+	if v == nil {
+		return ""
+	}
+	return v
+}
 
 // ShowIndexes lists the indexes of the current collection.
 func ShowIndexes() {
@@ -37,17 +86,9 @@ func ShowIndexesFor(ns state.Namespace) {
 			}
 			s.CurrentIndexes = idxs
 			s.IndexesNS = ns
-			s.IndexList.Clear()
-			for _, idx := range idxs {
-				name, _ := mjson.Get(idx, "name")
-				key, _ := mjson.Get(idx, "key")
-				nameStr, _ := name.(string)
-				s.IndexList.AddItem(tview.Escape(nameStr), tview.Escape(mjson.Compact(key)), 0, nil)
-			}
-			s.IndexList.SetTitle(fmt.Sprintf(" Indexes [yellow](%s)[white] [green]%d[white] ", tview.Escape(ns.String()), len(idxs)))
-			s.DocPages.SwitchToPage("indexes")
-			s.App.SetFocus(s.IndexList)
-			state.RefreshPanelBorders()
+			s.IndexCursor = 0
+			s.ListRevision++
+			s.View, s.Focus = "indexes", "content"
 		}
 	})
 }
@@ -61,13 +102,13 @@ func ShowIndexDetail(i int) {
 	idx := s.CurrentIndexes[i]
 	name, _ := mjson.Get(idx, "name")
 	nameStr, _ := name.(string)
-	state.SetDetail(fmt.Sprintf(" Index Detail [yellow](%s)[white] ", tview.Escape(nameStr)), mjson.Tokens(idx, true))
+	state.SetDetail("Index Detail · "+nameStr, mjson.Tokens(idx, true))
 	s.DetailBackPage = "indexes"
 }
 
 func DropIndexConfirm() {
 	s := state.S
-	idx := s.IndexList.GetCurrentItem()
+	idx := s.IndexCursor
 	if idx < 0 || idx >= len(s.CurrentIndexes) {
 		return
 	}
@@ -81,7 +122,7 @@ func DropIndexConfirm() {
 		state.FlashError("Cannot drop the _id_ index")
 		return
 	}
-	confirm(s.ConfirmModal, "confirm", fmt.Sprintf("Drop index '%s' on %s? This cannot be undone!", name, ns), "Drop", s.IndexList, func() {
+	confirm("drop-index", fmt.Sprintf("Drop index '%s' on %s? This cannot be undone!", name, ns), "", func() {
 		coll := s.Client.Database(ns.DB).Collection(ns.Coll)
 		state.Async("Dropping index", func(ctx context.Context) func() {
 			_, err := coll.Indexes().DropOne(ctx, name)
@@ -90,7 +131,7 @@ func DropIndexConfirm() {
 					state.FlashError("Drop index failed: " + err.Error())
 					return
 				}
-				state.FlashStatus(fmt.Sprintf(" [green]Index '%s' dropped", tview.Escape(name)))
+				state.FlashStatus(fmt.Sprintf("Index '%s' dropped", name))
 				ShowIndexesFor(ns)
 			}
 		})

@@ -2,7 +2,6 @@ package documents
 
 import (
 	"sort"
-	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 
@@ -11,6 +10,12 @@ import (
 
 func ToggleSelection(idx int) {
 	s := state.S
+	if idx < 0 || idx >= len(s.CurrentDocs) {
+		return
+	}
+	if s.SelectedDocs == nil {
+		s.SelectedDocs = map[int]bool{}
+	}
 	if s.SelectedDocs[idx] {
 		delete(s.SelectedDocs, idx)
 	} else {
@@ -22,6 +27,9 @@ func ToggleSelection(idx int) {
 // SelectAll selects every loaded document.
 func SelectAll() {
 	s := state.S
+	if s.SelectedDocs == nil {
+		s.SelectedDocs = map[int]bool{}
+	}
 	for i := range s.CurrentDocs {
 		s.SelectedDocs[i] = true
 	}
@@ -29,18 +37,7 @@ func SelectAll() {
 }
 
 func RefreshDocListSelection() {
-	s := state.S
-	for i := 0; i < s.DocList.GetItemCount(); i++ {
-		main, _ := s.DocList.GetItemText(i)
-		main = strings.TrimPrefix(main, "✓ ")
-		if s.SelectedDocs[i] {
-			s.DocList.SetItemText(i, "✓ "+main, "")
-		} else {
-			s.DocList.SetItemText(i, main, "")
-		}
-	}
-	s.DocList.SetTitle(state.FormatDocListTitle())
-	state.UpdateStatusHints()
+	// The root syncs selection after every message without rebuilding rows.
 }
 
 func ClearSelection() {

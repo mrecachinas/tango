@@ -28,9 +28,10 @@ const (
 	ActRemove         = "remove"
 	ActDropCollection = "dropCollection"
 	ActDropIndex      = "dropIndex"
+	ActDropDatabase   = "dropDatabase"
 )
 
-var writeActions = []string{ActInsert, ActUpdate, ActRemove, ActDropCollection, ActDropIndex}
+var writeActions = []string{ActInsert, ActUpdate, ActRemove, ActDropCollection, ActDropIndex, ActDropDatabase}
 
 // ParsePrivileges extracts privileges from a connectionStatus reply
 // (run with showPrivileges: true). It returns nil when no user is
@@ -115,6 +116,10 @@ func (p *Privileges) AnyWrite() bool {
 
 // CheckWrite reports whether action is allowed on ns, showing an error if not.
 func CheckWrite(action string, ns Namespace) bool {
+	if S.ReadOnly {
+		ShowError("Read-only mode: write operations are disabled")
+		return false
+	}
 	if S.Privileges.Can(action, ns.DB, ns.Coll) {
 		return true
 	}

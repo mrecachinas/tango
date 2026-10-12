@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"tango/internal/mjson"
@@ -18,26 +17,8 @@ func shellescape(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
-// confirm shows a two-button modal; onYes runs after the modal is closed.
-func confirm(modal *tview.Modal, page, text, action string, back tview.Primitive, onYes func()) {
-	s := state.S
-	modal.ClearButtons()
-	modal.SetText(tview.Escape(text)).
-		AddButtons([]string{action, "Cancel"}).
-		SetDoneFunc(func(_ int, label string) {
-			s.RootPages.HidePage(page)
-			s.RootPages.SwitchToPage("main")
-			if back != nil {
-				s.App.SetFocus(back)
-			}
-			state.RefreshPanelBorders()
-			if label == action {
-				onYes()
-			}
-		})
-	modal.SetFocus(0)
-	s.RootPages.ShowPage(page)
-	s.App.SetFocus(modal)
+func confirm(id, text, expected string, onYes func()) {
+	state.S.Confirm = &state.Confirmation{ID: id, Question: text, Expected: expected, OnYes: onYes}
 }
 
 func truncate(s string, n int) string {
@@ -49,9 +30,16 @@ func truncate(s string, n int) string {
 
 // DeleteDocumentConfirm asks to delete the selected documents (or the one
 // under the cursor). The _ids and namespace are captured now, so reloads
-// while the prompt is open can't change what gets deleted.
+// while the prompt is open can't change what gets deleted. Like the d key, it
+// only works from the document list: elsewhere the list cursor and selection
+// are hidden.
 func DeleteDocumentConfirm() {
 	s := state.S
+	switch s.View {
+	case "detail", "tree", "indexes", "stats":
+		state.FlashStatus("Delete works from the document list; press Esc to go back")
+		return
+	}
 	if !s.DocsDeletable {
 		state.ShowError("These results aren't stored documents (e.g. aggregation output), so they can't be deleted from here.")
 		return
@@ -63,7 +51,7 @@ func DeleteDocumentConfirm() {
 	var docs []bson.D
 	if len(s.SelectedDocs) > 0 {
 		docs = selectedDocsSlice()
-	} else if idx := s.DocList.GetCurrentItem(); idx >= 0 && idx < len(s.CurrentDocs) {
+	} else if idx := s.Cursor; idx >= 0 && idx < len(s.CurrentDocs) {
 		docs = []bson.D{s.CurrentDocs[idx]}
 	}
 	if len(docs) == 0 {
@@ -82,7 +70,7 @@ func DeleteDocumentConfirm() {
 	if len(ids) == 1 {
 		text = fmt.Sprintf("Delete this document from %s?\n_id: %s", ns, truncate(mjson.Compact(ids[0]), 200))
 	}
-	confirm(s.ConfirmModal, "confirm", text, "Delete", s.DocList, func() { deleteByIDs(ns, ids) })
+	confirm("delete", text, "", func() { deleteByIDs(ns, ids) })
 }
 
 func deleteByIDs(ns state.Namespace, ids bson.A) {
@@ -96,9 +84,9 @@ func deleteByIDs(ns state.Namespace, ids bson.A) {
 				return
 			}
 			if int(res.DeletedCount) < len(ids) {
-				state.FlashStatus(fmt.Sprintf(" [yellow]Deleted %d of %d documents (the rest no longer existed)", res.DeletedCount, len(ids)))
+				state.FlashStatus(fmt.Sprintf("Deleted %d of %d documents (the rest no longer existed)", res.DeletedCount, len(ids)))
 			} else {
-				state.FlashStatus(fmt.Sprintf(" [green]Deleted %d document(s)", res.DeletedCount))
+				state.FlashStatus(fmt.Sprintf("Deleted %d document(s)", res.DeletedCount))
 			}
 			if s.DocsNS != ns {
 				return
@@ -119,30 +107,41 @@ func deleteByIDs(ns state.Namespace, ids bson.A) {
 }
 
 // currentDoc returns the document an edit applies to: the one open in the
-// detail/tree view, else the one under the list cursor.
+// detail/tree view, else the one under the list cursor. Detail views showing
+// something other than a document (index details, errors, ...) and the
+// indexes/stats pages have no current document; the hidden list cursor must
+// not be used there.
 func currentDoc() (bson.D, state.Namespace, bool) {
 	s := state.S
-	if name, _ := s.DocPages.GetFrontPage(); (name == "detail" || name == "tree") && s.ExpandedDoc != nil {
+	switch s.View {
+	case "detail", "tree":
+		if s.ExpandedDoc == nil {
+			return nil, state.Namespace{}, false
+		}
 		return s.ExpandedDoc, s.ExpandedNS, s.ExpandedEditable
+	case "indexes", "stats":
+		return nil, state.Namespace{}, false
 	}
-	if idx := s.DocList.GetCurrentItem(); idx >= 0 && idx < len(s.CurrentDocs) {
+	if idx := s.Cursor; idx >= 0 && idx < len(s.CurrentDocs) {
 		return s.CurrentDocs[idx], s.DocsNS, s.DocsEditable
 	}
 	return nil, state.Namespace{}, false
 }
 
-// runEditor opens text in $EDITOR and returns the edited text.
-func runEditor(text string) (string, error) {
-	s := state.S
+// runEditor prepares an ExecProcess request; Done is called by the root on the
+// UI goroutine after Bubble Tea restores the terminal.
+func runEditor(text string, done func(string, error)) {
 	tmp, err := os.CreateTemp("", "tango-*.json")
 	if err != nil {
-		return "", fmt.Errorf("create temp file: %w", err)
+		done("", fmt.Errorf("create editor file: %w", err))
+		return
 	}
 	path := tmp.Name()
-	defer func() { _ = os.Remove(path) }()
 	if _, err := tmp.WriteString(text); err != nil {
 		_ = tmp.Close()
-		return "", fmt.Errorf("write temp file: %w", err)
+		_ = os.Remove(path)
+		done("", fmt.Errorf("write editor file: %w", err))
+		return
 	}
 	_ = tmp.Close()
 
@@ -153,49 +152,44 @@ func runEditor(text string) (string, error) {
 	if editor == "" {
 		editor = "vi"
 	}
-	var runErr error
-	s.App.Suspend(func() {
-		cmd := exec.Command("sh", "-c", editor+" "+shellescape(path))
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		runErr = cmd.Run()
-	})
-	if runErr != nil {
-		return "", fmt.Errorf("editor %q failed: %w", editor, runErr)
+	state.S.Editor = &state.EditorRequest{
+		Command: exec.Command("sh", "-c", editor+" "+shellescape(path)),
+		Done: func(err error) {
+			defer func() { _ = os.Remove(path) }()
+			if err != nil {
+				done("", fmt.Errorf("editor %q failed: %w", editor, err))
+				return
+			}
+			out, err := os.ReadFile(path)
+			done(string(out), err)
+		},
 	}
-	out, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read edited file: %w", err)
-	}
-	return string(out), nil
 }
 
 // editText runs the editor on text and parses the result, offering to
 // re-open the editor (with the user's text intact) when it doesn't parse.
-func editText(text, original string, back tview.Primitive, onDoc func(bson.D)) {
-	s := state.S
-	edited, err := runEditor(text)
-	if err != nil {
-		state.ShowError(err.Error())
-		return
-	}
-	if original != "" && strings.TrimSpace(edited) == strings.TrimSpace(original) {
-		state.FlashStatus(" [gray]No changes")
-		return
-	}
-	d, err := mjson.ParseDoc(edited)
-	if err != nil {
-		confirm(s.ConfirmModal, "confirm", "Invalid document:\n"+err.Error(), "Re-edit", back, func() {
-			editText(edited, original, back, onDoc)
-		})
-		return
-	}
-	onDoc(d)
+func editText(text, original string, onDoc func(bson.D)) {
+	runEditor(text, func(edited string, err error) {
+		if err != nil {
+			state.ShowError(err.Error())
+			return
+		}
+		if original != "" && strings.TrimSpace(edited) == strings.TrimSpace(original) {
+			state.FlashStatus("No changes")
+			return
+		}
+		d, err := mjson.ParseDoc(edited)
+		if err != nil {
+			confirm("re-edit", "Invalid document:\n"+err.Error()+"\nRe-edit?", "", func() {
+				editText(edited, original, onDoc)
+			})
+			return
+		}
+		onDoc(d)
+	})
 }
 
 func EditDocument() {
-	s := state.S
 	doc, ns, editable := currentDoc()
 	if doc == nil {
 		state.ShowError("No document selected")
@@ -214,8 +208,7 @@ func EditDocument() {
 		return
 	}
 	original := mjson.Pretty(doc)
-	back := s.App.GetFocus()
-	editText(original, original, back, func(newDoc bson.D) {
+	editText(original, original, func(newDoc bson.D) {
 		if newID, ok := mjson.Get(newDoc, "_id"); ok && mjson.Compact(newID) != mjson.Compact(id) {
 			state.ShowError("Changing _id isn't supported. Insert a new document instead.")
 			return
@@ -249,9 +242,9 @@ func saveDocument(ns state.Namespace, id interface{}, repl bson.D) {
 				state.ShowError("The document no longer exists (it may have been deleted); nothing was saved.")
 				return
 			}
-			state.FlashStatus(" [green]Document updated")
+			state.FlashStatus("Document updated")
 			if updated != nil && s.ExpandedNS == ns {
-				if page, _ := s.DocPages.GetFrontPage(); page == "detail" || page == "tree" {
+				if s.View == "detail" || s.View == "tree" {
 					showDocument(updated, ns, true)
 				}
 			}
@@ -278,13 +271,7 @@ func replaceDocByID(doc bson.D) {
 	for i, d := range s.CurrentDocs {
 		if k, ok := idKey(d); ok && k == key {
 			s.CurrentDocs[i] = doc
-			item := docListItem(doc)
-			if s.SelectedDocs[i] {
-				item = "✓ " + item
-			}
-			if i < s.DocList.GetItemCount() {
-				s.DocList.SetItemText(i, item, "")
-			}
+			s.DocsRevision++
 		}
 	}
 }
@@ -302,10 +289,9 @@ func InsertDocument() {
 	if !state.CheckWrite(state.ActInsert, ns) {
 		return
 	}
-	back := s.App.GetFocus()
-	editText("{\n  \n}\n", "", back, func(d bson.D) {
+	editText("{\n  \n}\n", "", func(d bson.D) {
 		if len(d) == 0 {
-			state.FlashStatus(" [gray]Empty document — nothing inserted")
+			state.FlashStatus("Empty document — nothing inserted")
 			return
 		}
 		coll := s.Client.Database(ns.DB).Collection(ns.Coll)
@@ -316,7 +302,7 @@ func InsertDocument() {
 					state.ShowError("Insert failed: " + err.Error())
 					return
 				}
-				state.FlashStatus(" [green]Inserted document " + tview.Escape(truncate(mjson.Compact(res.InsertedID), 80)) + " into " + tview.Escape(ns.String()))
+				state.FlashStatus("Inserted document " + truncate(mjson.Compact(res.InsertedID), 80) + " into " + ns.String())
 				if s.DocsNS == ns && s.ResultLabel == "" {
 					s.CountDirty = true
 					ReloadDocuments()

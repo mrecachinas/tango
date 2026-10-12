@@ -14,6 +14,7 @@ func Async(loading string, work func(ctx context.Context) func()) {
 
 // AsyncTimeout is Async with an explicit timeout; 0 means no timeout.
 func AsyncTimeout(loading string, timeout time.Duration, work func(ctx context.Context) func()) {
+	s := S
 	tok := -1
 	if loading != "" {
 		tok = BeginLoading(loading)
@@ -27,13 +28,20 @@ func AsyncTimeout(loading string, timeout time.Duration, work func(ctx context.C
 			ctx, cancel = context.WithCancel(context.Background())
 		}
 		apply := work(ctx)
+		err := ctx.Err()
 		cancel()
-		S.App.QueueUpdateDraw(func() {
+		Post(func() {
+			if S != s {
+				return
+			}
 			if tok >= 0 {
 				EndLoading(tok)
 			}
 			if apply != nil {
 				apply()
+			}
+			if err != nil {
+				FlashError(err.Error())
 			}
 		})
 	}()

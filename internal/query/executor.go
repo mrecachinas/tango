@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rivo/tview"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -37,6 +36,10 @@ func setBrowseQuery(filter, projection, sort bson.D, skip, limit int64) {
 func ExecuteQuery(queryStr string) {
 	s := state.S
 	queryStr = strings.TrimSpace(queryStr)
+	// Commands must not replace the filter that "/" prefills.
+	if !strings.HasPrefix(queryStr, ":") {
+		s.QueryText = queryStr
+	}
 
 	if queryStr == "" {
 		if s.CurrentDB != "" && s.CurrentColl != "" {
@@ -49,7 +52,6 @@ func ExecuteQuery(queryStr string) {
 	s.QueryHistoryIdx = -1
 
 	if strings.HasPrefix(queryStr, ":") {
-		s.SearchBar.SetText("")
 		executeCommand(queryStr[1:])
 		return
 	}
@@ -225,7 +227,7 @@ func runParsed(q shellQuery) error {
 					state.ShowError("count error: " + err.Error())
 					return
 				}
-				state.ShowMessage(fmt.Sprintf(" count [yellow](%s)[white] ", tview.Escape(ns.String())), strconv.FormatInt(n, 10))
+				state.ShowMessage("count · "+ns.String(), strconv.FormatInt(n, 10))
 			}
 		})
 
@@ -240,7 +242,7 @@ func runParsed(q shellQuery) error {
 					state.ShowError("estimatedDocumentCount error: " + err.Error())
 					return
 				}
-				state.ShowMessage(fmt.Sprintf(" estimated count [yellow](%s)[white] ", tview.Escape(ns.String())), strconv.FormatInt(n, 10))
+				state.ShowMessage("estimated count · "+ns.String(), strconv.FormatInt(n, 10))
 			}
 		})
 
@@ -294,7 +296,7 @@ func runParsed(q shellQuery) error {
 				}
 				l := label("aggregate")
 				if capped {
-					l += " ⚠ showing first 10,000"
+					l += " · showing first 10,000"
 				}
 				documents.ShowResultDocs(docs, ns, l, false, false)
 			}
@@ -331,9 +333,9 @@ func runParsed(q shellQuery) error {
 				}
 				toks := mjson.Tokens(bson.A(values), true)
 				if total > maxResultCap {
-					toks = append(toks, mjson.Token{Text: fmt.Sprintf("\n\n⚠ Showing %d of %d values", maxResultCap, total), Kind: mjson.Error})
+					toks = append(toks, mjson.Token{Text: fmt.Sprintf("\n\nShowing %d of %d values", maxResultCap, total), Kind: mjson.Error})
 				}
-				state.SetDetail(fmt.Sprintf(" distinct [yellow](%s.%s)[white] [green]%d[white] ", tview.Escape(ns.String()), tview.Escape(field), total), toks)
+				state.SetDetail(fmt.Sprintf("distinct · %s.%s · %d", ns, field, total), toks)
 			}
 		})
 
@@ -398,27 +400,13 @@ func aggregate(ctx context.Context, coll *mongo.Collection, p mongo.Pipeline, op
 	return docs, false, cur.Err()
 }
 
-// suggestionText maps escaped autocomplete entries back to the raw text.
-var suggestionText = map[string]string{}
-
-// GetAutocompleteSuggestions returns escaped entries for the query bar's
-// autocomplete list; SuggestionText maps a chosen entry back to raw text.
+// GetAutocompleteSuggestions returns raw query/command completions.
 func GetAutocompleteSuggestions(currentText string) []string {
-	raw := rawSuggestions(currentText)
-	suggestionText = make(map[string]string, len(raw))
-	out := make([]string, len(raw))
-	for i, r := range raw {
-		out[i] = tview.Escape(r)
-		suggestionText[out[i]] = r
-	}
-	return out
+	return rawSuggestions(currentText)
 }
 
 // SuggestionText returns the raw text for an autocomplete entry.
 func SuggestionText(entry string) string {
-	if r, ok := suggestionText[entry]; ok {
-		return r
-	}
 	return entry
 }
 
@@ -457,13 +445,10 @@ func rawSuggestions(currentText string) []string {
 	return suggestions
 }
 
-func showPanel(page string, list tview.Primitive) {
+func showPanel(_ string) {
 	s := state.S
-	if s.WideMode {
-		s.DocPages.SwitchToPage(page)
-	}
-	s.App.SetFocus(list)
-	state.RefreshPanelBorders()
+	s.WideMode = false
+	s.Focus = "sidebar"
 }
 
 func executeCommand(cmd string) {
@@ -475,6 +460,15 @@ func executeCommand(cmd string) {
 	name, args := strings.ToLower(parts[0]), parts[1:]
 
 	switch name {
+	case "q", "quit":
+		s.Quit = true
+
+	case "drop":
+		if len(args) == 1 && args[0] == "database" {
+			documents.DropDatabaseConfirm()
+		} else {
+			state.ShowError("Usage: :drop database")
+		}
 	case "indexes", "idx":
 		if s.CurrentDB == "" || s.CurrentColl == "" {
 			state.ShowError("Select a collection first")
@@ -498,12 +492,17 @@ func executeCommand(cmd string) {
 			return
 		}
 		var spec bson.D
-		for _, f := range args {
+		for i := 0; i < len(args); i++ {
+			f := args[i]
 			order := 1
 			if strings.HasPrefix(f, "-") {
 				f, order = f[1:], -1
 			} else {
 				f = strings.TrimPrefix(f, "+")
+			}
+			if i+1 < len(args) && (args[i+1] == "-1" || args[i+1] == "1") {
+				order, _ = strconv.Atoi(args[i+1])
+				i++
 			}
 			if f != "" {
 				spec = append(spec, bson.E{Key: f, Value: order})
@@ -546,13 +545,13 @@ func executeCommand(cmd string) {
 
 	case "use", "database", "db":
 		if len(args) < 1 {
-			showPanel("databases", s.DbList)
+			showPanel("databases")
 			return
 		}
 		documents.SelectDatabase(args[0], nil)
 
 	case "databases", "dbs":
-		showPanel("databases", s.DbList)
+		showPanel("databases")
 
 	case "collection", "coll":
 		if s.CurrentDB == "" {
@@ -560,7 +559,7 @@ func executeCommand(cmd string) {
 			return
 		}
 		if len(args) < 1 {
-			showPanel("collections", s.CollList)
+			showPanel("collections")
 			return
 		}
 		documents.SelectCollection(args[0])
@@ -570,7 +569,7 @@ func executeCommand(cmd string) {
 			state.ShowError("Select a database first")
 			return
 		}
-		showPanel("collections", s.CollList)
+		showPanel("collections")
 
 	case "refresh":
 		documents.Refresh()
@@ -617,6 +616,7 @@ func getCommandSuggestions(partial string) []string {
 		":use ", ":profile", ":refresh", ":refresh!", ":watch ",
 		":databases", ":dbs", ":database ", ":db ",
 		":collections", ":colls", ":collection ", ":coll ",
+		":q", ":drop database",
 	}
 	var suggestions []string
 	for _, cmd := range commands {

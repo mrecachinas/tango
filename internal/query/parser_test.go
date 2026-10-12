@@ -105,13 +105,27 @@ func TestOutputTarget(t *testing.T) {
 	}
 }
 
-func TestAutocompleteEscapesNames(t *testing.T) {
+func TestAutocompletePreservesNames(t *testing.T) {
 	state.S = &state.AppState{AllCollItems: []state.ListEntry{{Name: "we[ird]"}}}
 	got := GetAutocompleteSuggestions("db.we")
-	if len(got) != 1 || got[0] != "db.we[ird[]." {
+	if len(got) != 1 || got[0] != "db.we[ird]." {
 		t.Fatalf("suggestions = %q", got)
 	}
 	if raw := SuggestionText(got[0]); raw != "db.we[ird]." {
 		t.Errorf("raw = %q", raw)
+	}
+}
+
+func TestExecuteQueryPreservesQueryTextForCommands(t *testing.T) {
+	state.S = &state.AppState{QueryText: `{a: 1}`}
+	for _, cmd := range []string{":limit", ":sort name", "  :q  "} {
+		ExecuteQuery(cmd)
+		if state.S.QueryText != `{a: 1}` {
+			t.Fatalf("%q overwrote QueryText: %q", cmd, state.S.QueryText)
+		}
+	}
+	ExecuteQuery(` {b: 2} `)
+	if state.S.QueryText != `{b: 2}` {
+		t.Fatalf("filter not saved: %q", state.S.QueryText)
 	}
 }

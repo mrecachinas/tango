@@ -1,3 +1,12 @@
+# Optional global skin; profiles may override theme.name and individual colors.
+# Copy this file to ~/.tango.yaml to use its profiles and theme.
+# theme:
+#   name: dark # dark (default), light, mono, or auto
+#   colors:
+#     accent: "#89b4fa"
+#     border: "238" # ANSI color number; quote numeric values
+# A non-empty NO_COLOR environment variable forces monochrome.
+
 profiles:
   local:
     mongo_url: localhost
