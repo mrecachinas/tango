@@ -115,7 +115,7 @@ func currentDoc() (bson.D, state.Namespace, bool) {
 // runEditor prepares an ExecProcess request; Done is called by the root on the
 // UI goroutine after Bubble Tea restores the terminal.
 func runEditor(text string, done func(string, error)) {
-	tmp, err := os.CreateTemp(".", ".tango-editor-*.json")
+	tmp, err := os.CreateTemp("", "tango-*.json")
 	if err != nil {
 		done("", fmt.Errorf("create editor file: %w", err))
 		return
