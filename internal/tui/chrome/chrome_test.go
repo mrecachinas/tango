@@ -79,7 +79,7 @@ func TestHeaderCompactContent(t *testing.T) {
 
 func TestHeaderDegradationOrder(t *testing.T) {
 	full := strings.TrimRight(ansi.Strip(Header(snapshot(), nil, 240, false)), " ")
-	metricsInOrder := []string{"mem ", "ping ", "conns ", "up ", "v7.0.31"}
+	metricsInOrder := []string{"mem ", "conns ", "ping ", "▁▂▃▄▅▆▇█", "ops 2/s", "up "}
 	seenDropped := make([]bool, len(metricsInOrder))
 	for width := ansi.StringWidth(full); width >= 20; width-- {
 		got := ansi.Strip(Header(snapshot(), nil, width, false))
@@ -96,8 +96,8 @@ func TestHeaderDegradationOrder(t *testing.T) {
 				t.Fatalf("width %d: %s returned after being dropped", width, label)
 			}
 		}
-		if width >= 28 && !strings.Contains(got, "ops 2/s") {
-			t.Fatalf("width %d: ops dropped before optional metrics", width)
+		if width >= ansi.StringWidth("● localhost:27017 · v7.0.31") && !strings.Contains(got, "localhost:27017 · v7.0.31") {
+			t.Fatalf("width %d: identity truncated before optional metrics: %q", width, got)
 		}
 	}
 	for i, dropped := range seenDropped {
@@ -162,13 +162,24 @@ func TestExpandedGrid(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(ansi.Strip(lines[2]), "2↓ 4↑KB/s") {
+	if !strings.Contains(ansi.Strip(lines[2]), "↓2 KB/s ↑4 KB/s") {
 		t.Error("network in/out not visible")
 	}
+
 	if !strings.Contains(lines[2], theme.Current().Faint.Render("▁▁▁▁▁▁▁▁")) {
 		t.Error("flat zero history is not a faint baseline")
 	}
 	assertSize(t, got, 120, 4)
+}
+
+func TestNarrowHeaderPreservesHostAndVersion(t *testing.T) {
+	s := snapshot()
+	s.HostLabel = "127.0.0.1:27027"
+	s.ReplicaSet = &metrics.ReplicaSetInfo{Healthy: 1, Members: 1}
+	got := ansi.Strip(Header(s, nil, 40, false))
+	if !strings.Contains(got, "127.0.0.1:27027 · v7.0.31") || strings.Contains(got, "ops ") {
+		t.Fatalf("narrow identity: %q", got)
+	}
 }
 
 func TestFooterHintsAndDropping(t *testing.T) {

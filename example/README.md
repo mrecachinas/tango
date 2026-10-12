@@ -6,7 +6,10 @@ immediately.
 ## Prerequisites
 
 - Docker (with Compose v2)
-- `mongosh` on your `$PATH` (for the seed step and tango's query bar)
+- Go (to build tango)
+
+Seeding runs `mongosh` inside the MongoDB container; no host `mongosh` is needed.
+tango parses shell-style queries itself.
 
 ## Quick start
 
@@ -40,3 +43,10 @@ db.products.find({stock: 0}).sort({sku: 1}).limit(10)
 db.users.find({_id: ObjectId("…"), createdAt: {$gte: ISODate("2024-01-01")}})
 :dbs
 ```
+
+Use `/` in the document list to enter queries; use `:` for commands such as
+`:db sample_app`, `:coll users` and `:sort age -1`.
+
+For connection profiles and a commented theme example, see [tango.yaml](tango.yaml).
+Copy it to `~/.tango.yaml`, restrict its permissions with `chmod 600 ~/.tango.yaml`,
+then run `./tango --profile local`.

@@ -351,7 +351,7 @@ func TestEndToEnd(t *testing.T) {
 		e.openColl("a")
 		e.query(":sort -createdAt src")
 		v := e.snap()
-		if got := state.FormatSort(v.CurrentSort); got != "createdAt↓ src↑" {
+		if got := state.FormatSort(v.CurrentSort); got != "createdAt ↓ src ↑" {
 			t.Errorf("sort = %q", got)
 		}
 		e.query(":sort")

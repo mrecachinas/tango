@@ -20,10 +20,6 @@ func (m *Model) key(key tea.KeyPressMsg) tea.Cmd {
 		case "palette":
 			return m.palette.Update(key)
 		case "help":
-			if k == "?" {
-				m.closeOverlay()
-				return nil
-			}
 			return m.help.Update(key)
 		case "confirm":
 			if m.typeConfirm != nil {
@@ -155,6 +151,10 @@ func (m *Model) key(key tea.KeyPressMsg) tea.Cmd {
 			return m.json.Update(key)
 		}
 	case "indexes":
+		if k == "enter" {
+			documents.ShowIndexDetail(s.IndexCursor)
+			return nil
+		}
 		if k == "X" {
 			documents.DropIndexConfirm()
 			return nil
@@ -226,7 +226,7 @@ func (m *Model) back() {
 	case "tree", "detail":
 		documents.CollapseDocument()
 	case "indexes", "stats":
-		s.View = "list"
+		s.View, s.Focus = "list", "content"
 	default:
 		s.Focus = "sidebar"
 		visible := true

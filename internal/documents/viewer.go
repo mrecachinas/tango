@@ -1,8 +1,6 @@
 package documents
 
 import (
-	"fmt"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -10,12 +8,9 @@ import (
 	"tango/internal/state"
 )
 
-func DocTitle(doc bson.D, ns state.Namespace, viewLabel string) string {
+func DocTitle(doc bson.D, _ state.Namespace, viewLabel string) string {
 	id, ok := mjson.Get(doc, "_id")
 	if !ok {
-		if ns.Coll != "" {
-			return fmt.Sprintf("%s · %s", ns.Coll, viewLabel)
-		}
 		return viewLabel
 	}
 	idStr := mjson.Compact(id)
@@ -24,9 +19,6 @@ func DocTitle(doc bson.D, ns state.Namespace, viewLabel string) string {
 		idStr = v.Hex()
 	case string:
 		idStr = v
-	}
-	if ns.Coll != "" {
-		return ns.Coll + " · " + truncate(idStr, 80)
 	}
 	return truncate(idStr, 80)
 }

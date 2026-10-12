@@ -19,3 +19,11 @@ func sidebarEntries(entries []state.ListEntry) []sidebar.Entry {
 	}
 	return out
 }
+
+func sidebarDatabaseEntries(entries []state.ListEntry) []sidebar.Entry {
+	out := sidebarEntries(entries)
+	for i := range out {
+		out[i].Dim = out[i].Name == "admin" || out[i].Name == "config" || out[i].Name == "local"
+	}
+	return out
+}

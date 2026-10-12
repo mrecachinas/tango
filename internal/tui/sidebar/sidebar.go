@@ -17,7 +17,10 @@ import (
 	"tango/internal/theme"
 )
 
-type Entry struct{ Name, Info string }
+type Entry struct {
+	Name, Info string
+	Dim        bool // System/disabled entries; admin, config and local dim by default.
+}
 type SelectDBMsg struct{ DB string }
 type OpenCollMsg struct{ DB, Coll string }
 type BackMsg struct{}
@@ -27,6 +30,7 @@ type BackMsg struct{}
 type Row struct {
 	DB, Coll, Name, Info string
 	Expanded, Loading    bool
+	Dim                  bool
 	MatchedIndexes       []int
 }
 
@@ -63,6 +67,7 @@ type Model struct {
 	cursor, offset, width, height int
 	filter                        string
 	filtering                     bool
+	focused                       bool
 }
 
 func New() *Model {
@@ -93,6 +98,7 @@ func (m *Model) SetLoading(db string, loading bool) {
 }
 
 func (m *Model) SetActive(db, coll string) { m.activeDB, m.activeColl = db, coll }
+func (m *Model) SetFocused(focused bool)   { m.focused = focused }
 func (m *Model) Expand(db string)          { m.expanded[db] = true; m.rebuild() }
 func (m *Model) Collapse(db string)        { m.expanded[db] = false; m.rebuild() }
 func (m *Model) Filtering() bool           { return m.filtering }
@@ -237,6 +243,7 @@ func (m *Model) rebuild() {
 				children = append(children, Row{
 					DB: entry.Name, Coll: child.Name, Name: child.Name,
 					Info: child.Info, MatchedIndexes: indexes,
+					Dim: child.Dim || systemDB(entry.Name) || entry.Dim,
 				})
 			}
 		}
@@ -247,6 +254,7 @@ func (m *Model) rebuild() {
 		rows = append(rows, Row{
 			DB: entry.Name, Name: entry.Name, Info: entry.Info,
 			Expanded: expanded, MatchedIndexes: dbIndexes,
+			Dim: entry.Dim || systemDB(entry.Name),
 		})
 		if expanded {
 			rows = append(rows, children...)
@@ -345,7 +353,7 @@ func (m *Model) View() string {
 		line := ""
 		if y < body {
 			if i := m.offset + y; i < len(m.rows) {
-				line = m.renderRow(m.rows[i], i == m.cursor)
+				line = m.renderRow(m.rows[i], m.focused && i == m.cursor)
 			} else if len(m.rows) == 0 && y == 0 {
 				text := "No databases"
 				if m.filter != "" {
@@ -377,6 +385,9 @@ func (m *Model) renderRow(row Row, selected bool) string {
 	faint := rowStyle(t.Faint, selected)
 	accent := rowStyle(t.Accent, selected)
 	nameStyle := text
+	if row.Dim {
+		nameStyle = faint
+	}
 	if row.DB == m.activeDB && (row.Coll == "" || row.Coll == m.activeColl) {
 		nameStyle = rowStyle(t.AccentBold, selected)
 	}
@@ -430,9 +441,13 @@ func (m *Model) renderRow(row Row, selected bool) string {
 	}
 	line = fitWidth(line, m.width)
 	if selected {
-		line = t.CursorRow.Render(line)
+		line = theme.CursorLine(line, m.width)
 	}
 	return line
+}
+
+func systemDB(name string) bool {
+	return name == "admin" || name == "config" || name == "local"
 }
 
 func rowStyle(style lipgloss.Style, selected bool) lipgloss.Style {

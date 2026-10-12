@@ -320,6 +320,9 @@ func (m *Model) renderRow(row row, selected bool) string {
 		if n.array {
 			count = fmt.Sprintf("[%d]", len(n.children))
 		}
+		if n.parent == nil {
+			count += " fields"
+		}
 		b.WriteString(styled(t.Muted, count))
 	} else {
 		for _, token := range n.tokens {
@@ -347,7 +350,7 @@ func (m *Model) renderRow(row row, selected bool) string {
 	}
 	line := fitWidth(b.String(), m.width)
 	if selected {
-		line = t.CursorRow.Render(line)
+		line = theme.CursorLine(line, m.width)
 	}
 	return line
 }

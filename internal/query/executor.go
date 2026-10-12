@@ -293,7 +293,7 @@ func runParsed(q shellQuery) error {
 				}
 				l := label("aggregate")
 				if capped {
-					l += " ⚠ showing first 10,000"
+					l += " · showing first 10,000"
 				}
 				documents.ShowResultDocs(docs, ns, l, false, false)
 			}
@@ -330,7 +330,7 @@ func runParsed(q shellQuery) error {
 				}
 				toks := mjson.Tokens(bson.A(values), true)
 				if total > maxResultCap {
-					toks = append(toks, mjson.Token{Text: fmt.Sprintf("\n\n⚠ Showing %d of %d values", maxResultCap, total), Kind: mjson.Error})
+					toks = append(toks, mjson.Token{Text: fmt.Sprintf("\n\nShowing %d of %d values", maxResultCap, total), Kind: mjson.Error})
 				}
 				state.SetDetail(fmt.Sprintf("distinct · %s.%s · %d", ns, field, total), toks)
 			}

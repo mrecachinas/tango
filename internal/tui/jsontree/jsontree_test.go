@@ -14,6 +14,7 @@ import (
 
 	"tango/internal/mjson"
 	"tango/internal/theme"
+	"tango/internal/theme/themetest"
 )
 
 func press(s string) tea.KeyPressMsg {
@@ -291,14 +292,30 @@ func TestDimensionInvariantsAndSyntaxCursorStyles(t *testing.T) {
 		m.SetDoc(bson.D{{Key: "text", Value: "hello"}})
 		m.SetSize(40, 2)
 		m.Update(press("j"))
-		style := theme.Current().JSONString.Inherit(theme.Current().CursorRow)
-		if !strings.Contains(strings.Split(m.View(), "\n")[1], style.Render(`"hello"`)) {
+		line := strings.Split(m.View(), "\n")[1]
+		if !strings.Contains(line, `"hello"`) {
 			t.Fatal("JSON syntax spans must retain cursor background")
 		}
+		themetest.Cursor(t, line, m.width)
 	}
+
 	m := New()
 	m.SetSize(-10, -10)
 	if m.View() != "" {
 		t.Fatal("negative sizes should clamp")
+	}
+}
+
+func TestRootSummaryAndGuides(t *testing.T) {
+	m := New()
+	m.SetDoc(bson.D{{Key: "name", Value: "sample"}})
+	m.SetSize(40, 4)
+	lines := strings.Split(m.View(), "\n")
+	if !strings.Contains(ansi.Strip(lines[0]), "{1} fields") {
+		t.Fatal("root must label its field count")
+	}
+	themetest.Cursor(t, lines[0], m.width)
+	if !strings.Contains(lines[1], theme.Current().Faint.Render("└─ ")) {
+		t.Fatal("tree guides must be faint")
 	}
 }

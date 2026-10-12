@@ -71,6 +71,18 @@ type EditorRequest struct {
 	Done    func(error)
 }
 
+type StatsColumn struct {
+	Name  string
+	Width int
+	Right bool
+}
+
+type StatsSection struct {
+	Title, Note, Empty string
+	Columns            []StatsColumn
+	Rows               [][]string
+}
+
 // AppState is the data store. Mutate it only on the UI goroutine; background
 // work hands results back through Post. Components belong to the root model.
 type AppState struct {
@@ -181,7 +193,9 @@ type AppState struct {
 
 	// Stats view
 	StatsOps        map[string]interface{} // displayed opid -> raw opid, for :killop
-	RefreshInterval time.Duration          // metrics/stats polling interval
+	StatsUpdated    string
+	StatsSections   []StatsSection
+	RefreshInterval time.Duration // metrics/stats polling interval
 	StatsStopCh     chan struct{}
 }
 
@@ -254,7 +268,7 @@ func ListLabel(e ListEntry) string {
 	return label
 }
 
-// FormatSort renders a sort spec like "a↑ b↓".
+// FormatSort renders a sort spec like "a ↑ b ↓".
 func FormatSort(sort bson.D) string {
 	parts := make([]string, 0, len(sort))
 	for _, e := range sort {
@@ -262,7 +276,7 @@ func FormatSort(sort bson.D) string {
 		if v, ok := ToFloat64(e.Value); ok && v < 0 {
 			arrow = "↓"
 		}
-		parts = append(parts, e.Key+arrow)
+		parts = append(parts, e.Key+" "+arrow)
 	}
 	return strings.Join(parts, " ")
 }
@@ -281,6 +295,9 @@ func TotalPages() int64 {
 
 func FormatDocListTitle() string {
 	s := S
+	if s.CurrentColl == "" && s.ResultLabel == "" && len(s.CurrentDocs) == 0 {
+		return ""
+	}
 	var parts []string
 	if s.ResultLabel != "" {
 		parts = append(parts, fmt.Sprintf("%d results · %s", len(s.CurrentDocs), s.ResultLabel))
@@ -303,18 +320,16 @@ func FormatDocListTitle() string {
 			parts = append(parts, fmt.Sprintf("page %d · count unavailable", s.CurrentPage+1))
 		}
 		if len(s.CurrentSort) > 0 {
-			parts = append(parts, "⇅ "+FormatSort(s.CurrentSort))
-		} else if s.LiveMode {
-			parts = append(parts, "newest first")
+			parts = append(parts, FormatSort(s.CurrentSort))
 		}
 		if len(s.CurrentFilter) > 0 || len(s.CurrentProjection) > 0 || s.QuerySkip > 0 || s.QueryLimit > 0 {
-			parts = append(parts, "⧩ "+mjson.Compact(s.CurrentFilter))
+			parts = append(parts, mjson.Compact(s.CurrentFilter))
 		}
 		if !s.KeysetMode && int64(s.CurrentPage)*int64(PageSize)+s.QuerySkip > 100000 {
-			parts = append(parts, "⚠ deep page")
+			parts = append(parts, "deep page")
 		}
 		if s.SnapshotID != nil && s.CurrentPage > 0 && !s.KeysetMode {
-			parts = append(parts, "📌")
+			parts = append(parts, "snapshot")
 		}
 	}
 	if n := len(s.SelectedDocs); n > 0 {

@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"regexp"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -87,7 +88,28 @@ func FitWidth(s string, w int) string {
 	}
 	sw := ansi.StringWidth(s)
 	if sw > w {
-		return ansi.Truncate(s, w, "…")
+		s = ansi.Truncate(s, w, "…")
+		sw = ansi.StringWidth(s)
 	}
 	return s + strings.Repeat(" ", w-sw)
+}
+
+var sgr = regexp.MustCompile(`\x1b\[[0-9;:]*m`)
+
+// CursorLine fills every cell, including gaps and padding, without replacing
+// semantic foregrounds. Reapply the fill after inner ANSI resets so they
+// cannot punch holes in the row. Mono themes use reverse instead.
+func CursorLine(s string, width int) string {
+	s = FitWidth(s, width)
+	if width <= 0 {
+		return s
+	}
+	fill := Current().CursorRow.Render(" ")
+	prefix := fill[:strings.IndexByte(fill, ' ')]
+	if prefix == "" {
+		return s
+	}
+	return prefix + sgr.ReplaceAllStringFunc(s, func(seq string) string {
+		return seq + prefix
+	}) + "\x1b[m"
 }

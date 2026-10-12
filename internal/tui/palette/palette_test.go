@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"tango/internal/theme"
+	"tango/internal/theme/themetest"
 )
 
 func key(code rune, text string) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code, Text: text} }
@@ -155,15 +155,43 @@ func TestUnicodeMatchesAndCursorStyling(t *testing.T) {
 		t.Fatal("fuzzy uses byte indexes; test fixture changed")
 	}
 	row := m.row(res, true, 30)
-	tm := theme.Current()
-	if !strings.Contains(row, tm.AccentBold.Inherit(tm.CursorRow).Render("o")) {
+	if !strings.Contains(row, "38;2;255;169;77") {
 		t.Fatalf("matched unicode byte position not highlighted: %q", row)
 	}
-	if !strings.Contains(row, tm.Muted.Inherit(tm.CursorRow).Render("many")) {
-		t.Fatalf("hint punched a hole in cursor fill: %q", row)
+	if !strings.Contains(row, "many") || !strings.Contains(row, "38;2;86;91;99") {
+		t.Fatalf("usage must be faint: %q", row)
 	}
+	themetest.Cursor(t, row, 30)
 	if ansi.StringWidth(row) != 30 {
 		t.Fatal("cursor row not fully padded")
+	}
+}
+
+func TestUsageBindingAndInputPadding(t *testing.T) {
+	m := New([]Item{{Kind: Command, Title: "Sort", Hint: "s · field -1", Value: ":sort"}})
+	m.SetSize(80, 24)
+	plain := strings.Split(ansi.Strip(m.View()), "\n")
+	if strings.Trim(plain[2], " │") != "" {
+		t.Fatal("input must have a blank row below it")
+	}
+	row := m.row(m.results[0], true, m.width-4)
+	if !strings.Contains(ansi.Strip(row), "Sort  field -1") || !strings.HasSuffix(ansi.Strip(row), "s") {
+		t.Fatal("usage and right-aligned binding are not separated")
+	}
+	themetest.Cursor(t, row, m.width-4)
+	for _, test := range []struct {
+		item      Item
+		key, args string
+	}{
+		{Item{Hint: ":limit n"}, "", "n"},
+		{Item{Hint: "x · [all] [path]"}, "x", "[all] [path]"},
+		{Item{Hint: "database"}, "", "database"},
+		{Item{Shortcut: "s", Usage: "field -1", Hint: "ignored"}, "s", "field -1"},
+	} {
+		key, args := itemHints(test.item)
+		if key != test.key || args != test.args {
+			t.Fatalf("hints = %q/%q want %q/%q", key, args, test.key, test.args)
+		}
 	}
 }
 

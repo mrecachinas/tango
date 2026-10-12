@@ -149,7 +149,7 @@ func (m *Model) View() string {
 			}
 			line = fitWidth(line, m.width)
 			if selected {
-				line = t.CursorRow.Render(line)
+				line = theme.CursorLine(line, m.width)
 			}
 		} else if len(m.items) == 0 && y == 0 {
 			line = t.Faint.Render(cleanLine(m.emptyText))

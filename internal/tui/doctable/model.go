@@ -163,9 +163,6 @@ func (m *Model) visibleColumns() []visibleColumn {
 		visible = append(visible, visibleColumn{index: i, width: width})
 		remaining -= width
 	}
-	if len(visible) > 0 {
-		visible[len(visible)-1].width += remaining
-	}
 	return visible
 }
 
@@ -368,7 +365,10 @@ func (m *Model) View() string {
 		cursor := index == m.cursor
 		gutter := m.renderGutter(index, cursor, t)
 		if m.mode == ModeJSON {
-			lines[y] = gutter + m.renderJSON(index, max(0, m.width-gutterWidth), cursor, t)
+			lines[y] = fit(gutter+m.renderJSON(index, max(0, m.width-gutterWidth), cursor, t), m.width)
+			if cursor {
+				lines[y] = theme.CursorLine(lines[y], m.width)
+			}
 			continue
 		}
 		var row strings.Builder
@@ -384,6 +384,9 @@ func (m *Model) View() string {
 			row.WriteString(rowStyle(t.Text, cursor, t).Render(strings.Repeat(" ", padding)))
 		}
 		lines[y] = row.String()
+		if cursor {
+			lines[y] = theme.CursorLine(lines[y], m.width)
+		}
 	}
 	return strings.Join(lines, "\n")
 }

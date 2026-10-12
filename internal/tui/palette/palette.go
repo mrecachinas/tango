@@ -29,6 +29,9 @@ type Item struct {
 	Title string
 	Hint  string
 	Value string
+	// Shortcut and Usage separate bindings from argument syntax. Legacy Hint
+	// values such as "s · field -1" are split when these fields are empty.
+	Shortcut, Usage string
 }
 
 type ChooseMsg struct {
@@ -183,7 +186,7 @@ func (m *Model) rawCommand() bool {
 	return false
 }
 
-func (m *Model) visibleRows() int { return max(0, m.height-4) }
+func (m *Model) visibleRows() int { return max(0, m.height-5) }
 
 func (m *Model) reveal() {
 	m.cursor = min(max(0, m.cursor), max(0, len(m.results)-1))
@@ -264,7 +267,7 @@ func (m *Model) row(res result, selected bool, w int) string {
 		prefix = decorate(t.Faint, "")
 	}
 	remaining := max(0, w-ansi.StringWidth(prefix))
-	hint := safe(item.Hint)
+	hint, usage := itemHints(item)
 	hintW := min(ansi.StringWidth(hint), remaining/3)
 	titleW := remaining
 	if hintW > 0 {
@@ -290,15 +293,41 @@ func (m *Model) row(res result, selected bool, w int) string {
 		}
 		b.WriteString(decorate(style, graphemes.Str()))
 	}
+	if usage != "" {
+		available := max(0, titleW-ansi.StringWidth(title)-2)
+		if available > 0 {
+			b.WriteString("  " + decorate(t.Faint, ansi.Truncate(usage, available, "…")))
+		}
+	}
 	if hintW > 0 {
-		b.WriteString(strings.Repeat(" ", max(1, remaining-ansi.StringWidth(title)-hintW)))
+		b.WriteString(strings.Repeat(" ", max(1, w-ansi.StringWidth(b.String())-hintW)))
 		b.WriteString(decorate(t.Muted, theme.FitWidth(hint, hintW)))
 	}
 	row := fitWidth(b.String(), w)
 	if selected {
-		return t.CursorRow.Render(row)
+		return theme.CursorLine(row, w)
 	}
 	return row
+}
+
+func itemHints(item Item) (shortcut, usage string) {
+	shortcut, usage = safe(item.Shortcut), safe(item.Usage)
+	if shortcut != "" || usage != "" {
+		return shortcut, usage
+	}
+	hint := safe(item.Hint)
+	first, rest, split := strings.Cut(hint, " · ")
+	if split {
+		return first, rest
+	}
+	if strings.HasPrefix(hint, ":") {
+		_, args, _ := strings.Cut(hint, " ")
+		return "", args
+	}
+	if ansi.StringWidth(hint) <= 2 || strings.HasPrefix(hint, "ctrl+") {
+		return hint, ""
+	}
+	return "", hint
 }
 
 // View renders the complete, already framed overlay; do not wrap it in Pane.
@@ -318,6 +347,9 @@ func (m *Model) View() string {
 	inner := m.width - 4
 	rows := make([]string, m.height-2)
 	rows[0] = fitWidth(m.input.View(), inner)
+	if len(rows) > 2 {
+		rows[1] = fitWidth("", inner)
+	}
 	for i := 0; i < m.visibleRows(); i++ {
 		index := m.top + i
 		text := ""
@@ -326,10 +358,10 @@ func (m *Model) View() string {
 		} else if i == 0 && len(m.results) == 0 {
 			text = t.Muted.Render("No matches · enter runs typed command")
 		}
-		rows[i+1] = fitWidth(text, inner)
+		rows[i+2] = fitWidth(text, inner)
 	}
-	rows[len(rows)-1] = fitWidth(t.Key.Render("↑↓")+" "+t.KeyDesc.Render("choose")+"  "+
-		t.Key.Render("enter")+" "+t.KeyDesc.Render("run")+"  "+t.Key.Render("esc")+" "+t.KeyDesc.Render("close"), inner)
+	rows[len(rows)-1] = fitWidth(t.Key.Render("↑↓")+" "+t.KeyDesc.Render("choose")+" · "+
+		t.Key.Render("enter")+" "+t.KeyDesc.Render("run")+" · "+t.Key.Render("esc")+" "+t.KeyDesc.Render("close"), inner)
 	return t.Overlay.Render(strings.Join(rows, "\n"))
 }
 

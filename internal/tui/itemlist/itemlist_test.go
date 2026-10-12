@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"tango/internal/theme"
+	"tango/internal/theme/themetest"
 )
 
 func press(s string) tea.KeyPressMsg {
@@ -141,6 +142,9 @@ func TestDimensionsAndCursorBackground(t *testing.T) {
 					for _, line := range lines {
 						if ansi.StringWidth(line) != w || ansi.StringWidth(ansi.Strip(line)) != w {
 							t.Fatalf("size %dx%d got line %q", w, h, line)
+						}
+						if len(items) > 0 {
+							themetest.Cursor(t, lines[0], w)
 						}
 					}
 				}

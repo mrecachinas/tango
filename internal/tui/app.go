@@ -13,12 +13,10 @@ import (
 
 	"tango/internal/documents"
 	"tango/internal/metrics"
-	"tango/internal/mjson"
 	"tango/internal/query"
 	"tango/internal/state"
 	"tango/internal/tui/chrome"
 	"tango/internal/tui/doctable"
-	"tango/internal/tui/itemlist"
 	"tango/internal/tui/jsontree"
 	"tango/internal/tui/jsonview"
 	"tango/internal/tui/overlay"
@@ -31,8 +29,8 @@ type Model struct {
 	table                                             *doctable.Model
 	tree                                              *jsontree.Model
 	json                                              *jsonview.Model
-	indexes                                           *itemlist.Model
-	stats                                             *itemlist.Model
+	indexes                                           *doctable.Model
+	stats                                             *statsModel
 	prompt                                            *prompt.Model
 	palette                                           *palette.Model
 	help                                              *overlay.Help
@@ -77,7 +75,7 @@ func New() *Model {
 	}
 	m := &Model{
 		sidebar: newSidebar(), table: doctable.New(), tree: jsontree.New(),
-		json: jsonview.New(), indexes: itemlist.New(), stats: itemlist.New(),
+		json: jsonview.New(), indexes: doctable.New(), stats: newStats(),
 		prompt:  prompt.New(prompt.Query, "/ ", "{field: value} or db.collection.find(…)"),
 		palette: palette.New(nil), help: overlay.NewHelp(helpSections()),
 		spinner: chrome.NewSpinner(), width: 80, height: 24, Exec: tea.ExecProcess,
@@ -135,12 +133,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		state.S.SelectedDB, state.S.SelectedColl = db, ""
 		state.S.Focus = "sidebar"
-	case itemlist.SelectMsg:
-		if state.S.View == "indexes" {
-			documents.ShowIndexDetail(msg.Index)
-		}
-	case itemlist.BackMsg:
-		m.back()
 	case palette.CloseMsg, overlay.CloseMsg:
 		m.closeOverlay()
 	case palette.ChooseMsg:
@@ -220,7 +212,7 @@ func (m *Model) sync() tea.Cmd {
 			m.sidebar.SetLoading(db, false)
 		}
 		m.cachedSidebar = map[string]bool{}
-		m.sidebar.SetDatabases(sidebarEntries(s.AllDBItems))
+		m.sidebar.SetDatabases(sidebarDatabaseEntries(s.AllDBItems))
 		for db, entries := range s.Collections {
 			m.sidebar.SetCollections(db, sidebarEntries(entries))
 			m.cachedSidebar[db] = true
@@ -248,7 +240,11 @@ func (m *Model) sync() tea.Cmd {
 	s.Cursor = m.table.Cursor()
 	m.table.SetSelected(s.SelectedDocs)
 	if s.CurrentColl == "" && len(s.CurrentDocs) == 0 {
-		m.table.SetEmptyText("Select a collection · Tab for databases · : commands")
+		text := "Tab to browse databases · : commands"
+		if s.Focus == "sidebar" {
+			text = "↵ open a collection · : commands"
+		}
+		m.table.SetEmptyText(text)
 	} else {
 		m.table.SetEmptyText("No documents")
 	}
@@ -259,23 +255,13 @@ func (m *Model) sync() tea.Cmd {
 	}
 	m.json.SetSearch(s.DocSearchTerm)
 	if !m.initialized || m.listRev != s.ListRevision {
-		items := make([]itemlist.Item, 0, len(s.CurrentIndexes))
-		for _, index := range s.CurrentIndexes {
-			name, _ := mjson.Get(index, "name")
-			keys, _ := mjson.Get(index, "key")
-			nameStr, _ := name.(string)
-			items = append(items, itemlist.Item{Title: nameStr, Detail: mjson.Compact(keys)})
-		}
-		m.indexes.SetItems(items)
+		m.indexes.SetDocs(documents.IndexRows(s.CurrentIndexes))
+		m.indexes.SetEmptyText("No indexes")
 		m.listRev = s.ListRevision
 	}
 	m.indexes.SetCursor(s.IndexCursor)
 	if !m.initialized || m.statsRev != s.StatsRevision {
-		items := make([]itemlist.Item, 0)
-		for _, line := range strings.Split(s.StatsText, "\n") {
-			items = append(items, itemlist.Item{Title: line})
-		}
-		m.stats.SetItems(items)
+		m.stats.SetData(s.StatsUpdated, s.StatsSections, s.StatsText)
 		m.statsRev = s.StatsRevision
 	}
 	m.initialized = true

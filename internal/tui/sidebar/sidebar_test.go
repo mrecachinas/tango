@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"tango/internal/theme"
+	"tango/internal/theme/themetest"
 )
 
 func press(s string) tea.KeyPressMsg {
@@ -32,9 +33,9 @@ func press(s string) tea.KeyPressMsg {
 func fixture() *Model {
 	m := New()
 	m.SetSize(22, 8)
-	m.SetDatabases([]Entry{{"sample_app", "3"}, {"inventory", "2"}})
-	m.SetCollections("sample_app", []Entry{{"events", "500"}, {"users", "120"}, {"sessions", "10"}})
-	m.SetCollections("inventory", []Entry{{"items", "20"}, {"warehouses", "5"}})
+	m.SetDatabases([]Entry{{Name: "sample_app", Info: "3"}, {Name: "inventory", Info: "2"}})
+	m.SetCollections("sample_app", []Entry{{Name: "events", Info: "500"}, {Name: "users", Info: "120"}, {Name: "sessions", Info: "10"}})
+	m.SetCollections("inventory", []Entry{{Name: "items", Info: "20"}, {Name: "warehouses", Info: "5"}})
 	return m
 }
 
@@ -96,9 +97,9 @@ func TestLoadingAndRefreshSelection(t *testing.T) {
 	selected(t, m, "inventory", "")
 	m.Update(press("up"))
 	selected(t, m, "sample_app", "sessions")
-	m.SetCollections("sample_app", []Entry{{"new", "1"}, {"sessions", "99"}})
+	m.SetCollections("sample_app", []Entry{{Name: "new", Info: "1"}, {Name: "sessions", Info: "99"}})
 	selected(t, m, "sample_app", "sessions")
-	m.SetCollections("sample_app", []Entry{{"new", "1"}})
+	m.SetCollections("sample_app", []Entry{{Name: "new", Info: "1"}})
 	selected(t, m, "sample_app", "")
 	m.SetLoading("sample_app", false)
 	for _, row := range m.Rows() {
@@ -205,7 +206,7 @@ func TestFuzzyFilterBothLevelsAndUnicodeIndexes(t *testing.T) {
 		t.Fatalf("database fuzzy match failed: %+v", rows)
 	}
 	m.Update(press("esc"))
-	m.SetDatabases([]Entry{{"é文🚀base", "2"}})
+	m.SetDatabases([]Entry{{Name: "é文🚀base", Info: "2"}})
 	m.Update(press("/"))
 	m.Update(press("文b"))
 	rows = m.Rows()
@@ -274,7 +275,7 @@ func TestSidebarRender(t *testing.T) {
 		!strings.HasPrefix(lines[1], "    events") || !strings.HasSuffix(lines[1], "500") {
 		t.Fatalf("unexpected tree rendering: %q", lines)
 	}
-	m.SetDatabases([]Entry{{"very-long-database-name", "12345"}})
+	m.SetDatabases([]Entry{{Name: "very-long-database-name", Info: "12345"}})
 	m.SetSize(12, 3)
 	line := strings.Split(ansi.Strip(m.View()), "\n")[0]
 	if !strings.Contains(line, "…") || !strings.HasSuffix(line, "12345") {
@@ -312,8 +313,8 @@ func TestDimensionsAcrossThemesAndTinySizes(t *testing.T) {
 		theme.Set(theme.New(palette))
 		for state := 0; state < 4; state++ {
 			m := fixture()
-			m.SetDatabases([]Entry{{"文🚀é長い名前", "123456789"}, {"bad\nname\x1b[31m", "1\t2"}, {"👩‍💻🇺🇸e\u0301", "2"}})
-			m.SetCollections("文🚀é長い名前", []Entry{{"文🚀e\u0301", "500"}})
+			m.SetDatabases([]Entry{{Name: "文🚀é長い名前", Info: "123456789"}, {Name: "bad\nname\x1b[31m", Info: "1\t2"}, {Name: "👩‍💻🇺🇸e\u0301", Info: "2"}})
+			m.SetCollections("文🚀é長い名前", []Entry{{Name: "文🚀e\u0301", Info: "500"}})
 			m.Expand("文🚀é長い名前")
 			m.SetLoading("文🚀é長い名前", true)
 			m.SetActive("👩‍💻🇺🇸e\u0301", "")
@@ -370,15 +371,44 @@ func TestCursorAndActiveStyles(t *testing.T) {
 	t.Cleanup(func() { theme.Set(old) })
 	theme.Set(theme.New(theme.Dark()))
 	m := fixture()
+	m.SetFocused(true)
 	m.SetActive("sample_app", "events")
 	m.Expand("sample_app")
 	m.SelectPath("sample_app", "events")
 	tokens := strings.Split(m.View(), "\n")
-	expected := theme.Current().AccentBold.Inherit(theme.Current().CursorRow).Render("e")
-	if !strings.Contains(tokens[1], expected) {
+	if !strings.Contains(tokens[1], "e") || !strings.Contains(tokens[1], "\x1b[48;2;43;48;56m") {
 		t.Fatal("active collection characters must retain accent/bold and cursor background")
 	}
 	if rowStyle(theme.Current().Muted, true).GetBackground() != theme.Current().CursorRow.GetBackground() {
 		t.Fatal("muted count must carry cursor background")
 	}
+	themetest.Cursor(t, tokens[1], m.width)
+}
+
+func TestUnfocusedActiveAndDimEntries(t *testing.T) {
+	m := New()
+	m.SetSize(24, 8)
+	m.SetDatabases([]Entry{{Name: "admin", Info: "2"}, {Name: "config"}, {Name: "local"},
+		{Name: "custom", Dim: true}, {Name: "sample_app", Info: "1"}})
+	m.SetCollections("sample_app", []Entry{{Name: "events", Info: "500"}})
+	m.SetActive("sample_app", "events")
+	m.SelectPath("sample_app", "events")
+	for _, row := range m.Rows()[:4] {
+		if !row.Dim {
+			t.Fatalf("database %q must dim", row.Name)
+		}
+	}
+	lines := strings.Split(m.View(), "\n")
+	fill := theme.Current().CursorRow.Render(" ")
+	prefix := fill[:strings.IndexByte(fill, ' ')]
+	if strings.Contains(m.View(), prefix) {
+		t.Fatal("unfocused sidebar must not paint cursor background")
+	}
+	active := lines[5]
+	if !strings.Contains(active, theme.Current().AccentBold.Render("e")) ||
+		!strings.Contains(active, theme.Current().Muted.Render("500")) {
+		t.Fatal("active name must accent, count must remain muted")
+	}
+	m.SetFocused(true)
+	themetest.Cursor(t, strings.Split(m.View(), "\n")[5], m.width)
 }

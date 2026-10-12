@@ -26,7 +26,7 @@ func HeaderHeight(expanded bool) int {
 // READ-ONLY and replica-health badges are inferred from the snapshot; badges
 // adds root-owned state such as LIVE. Identical badge text is not repeated.
 func Header(snap metrics.Snapshot, badges []Badge, width int, expanded bool) string {
-	line := compactHeader(snap, headerBadges(snap, badges), width)
+	line := compactHeader(snap, headerBadges(snap, badges), width, expanded)
 	if !expanded {
 		return line
 	}
@@ -58,7 +58,7 @@ func headerBadges(snap metrics.Snapshot, badges []Badge) []Badge {
 	return unique
 }
 
-func compactHeader(snap metrics.Snapshot, badges []Badge, width int) string {
+func compactHeader(snap metrics.Snapshot, badges []Badge, width int, expanded bool) string {
 	if width <= 0 {
 		return ""
 	}
@@ -105,42 +105,40 @@ func compactHeader(snap metrics.Snapshot, badges []Badge, width int) string {
 	if version == "" {
 		version = "?"
 	}
-	optional := []string{
-		t.Muted.Render("mem ") + t.Text.Render(fmt.Sprintf("%.0fMB", snap.MemoryMB)),
-		t.Muted.Render("ping ") + t.Text.Render(fmt.Sprintf("%.1fms", snap.PingMS)),
-		t.Muted.Render("conns ") + t.Text.Render(fmt.Sprintf("%d", snap.ConnectionsCurrent)),
-		t.Muted.Render("up ") + t.Text.Render(duration(snap.Uptime)),
-		t.Muted.Render("v") + t.Text.Render(version),
-	}
+	identity += t.Faint.Render(" · ") + t.Muted.Render("v") + t.Text.Render(version)
+	uptime := t.Faint.Render(" · ") + t.Muted.Render("up ") + t.Text.Render(duration(snap.Uptime))
 	ops := t.Muted.Render("ops ") + t.Text.Render(fmt.Sprintf("%.0f/s", snap.OpsPerSec))
 	spark := " " + Sparkline(snap.History.Ops, miniSparkWidth)
-	build := func(drop int, ident, trend string) string {
-		left := ident
-		if drop < 5 {
-			left += t.Faint.Render(" · ") + optional[4]
+	conns := "  " + t.Muted.Render("conns ") + t.Text.Render(fmt.Sprintf("%d", snap.ConnectionsCurrent))
+	ping := "  " + t.Muted.Render("ping ") + t.Text.Render(fmt.Sprintf("%.1fms", snap.PingMS))
+	mem := "  " + t.Muted.Render("mem ") + t.Text.Render(fmt.Sprintf("%.0fMB", snap.MemoryMB))
+	build := func(drop int) string {
+		left := identity
+		if drop < 6 {
+			left += uptime
 		}
-		if drop < 4 {
-			left += t.Faint.Render(" · ") + optional[3]
-		}
-		left += "   " + ops + trend
-		for i := 2; i >= drop; i-- {
-			left += "  " + optional[i]
+		if !expanded && drop < 5 {
+			left += "   " + ops
+			if drop < 4 {
+				left += spark
+			}
+			if drop < 2 {
+				left += conns
+			}
+			if drop < 3 {
+				left += ping
+			}
+			if drop < 1 {
+				left += mem
+			}
 		}
 		return left
 	}
-	for drop := 0; drop <= len(optional); drop++ {
-		left := build(drop, identity, spark)
+	for drop := 0; drop <= 6; drop++ {
+		left := build(drop)
 		if ansi.StringWidth(left) <= room {
 			return sides(left, right, width)
 		}
-	}
-	if ansi.StringWidth(ops+spark)+3+min(12, room) > room {
-		spark = ""
-	}
-	identityRoom := room - ansi.StringWidth(ops+spark) - 3
-	if identityRoom >= 4 {
-		left := ansi.Truncate(identity, identityRoom, "…") + "   " + ops + spark
-		return sides(left, right, width)
 	}
 	return sides(ansi.Truncate(identity, room, "…"), right, width)
 }
@@ -170,37 +168,55 @@ func expandedHeader(snap metrics.Snapshot, width int) string {
 	h := snap.History
 	cells := []metric{
 		{label: "ops", value: fmt.Sprintf("%.0f/s", snap.OpsPerSec), history: h.Ops},
-		{label: "conns", value: fmt.Sprintf("%d/%d", snap.ConnectionsCurrent, snap.ConnectionsCurrent+snap.ConnectionsAvailable), history: h.Connections},
+		{label: "conns", value: fmt.Sprintf("%d · %s avail", snap.ConnectionsCurrent, compactCount(snap.ConnectionsAvailable)), history: h.Connections},
 		{label: "ping", value: fmt.Sprintf("%.1fms", snap.PingMS), history: h.Ping},
 		{label: "mem", value: fmt.Sprintf("%.0fMB", snap.MemoryMB), history: h.Memory},
-		{label: "net", value: fmt.Sprintf("%.0f↓ %.0f↑KB/s", snap.NetInKBPerSec, snap.NetOutKBPerSec), history: h.NetIn},
+		{label: "net", value: fmt.Sprintf("↓%.0f KB/s ↑%.0f KB/s", snap.NetInKBPerSec, snap.NetOutKBPerSec), history: h.NetIn},
 		{label: "queue", value: fmt.Sprintf("%.0f", snap.Queue), history: h.Queue},
 		{label: "cursors", value: fmt.Sprintf("%.0f", snap.Cursors), history: h.Cursors},
 		{label: "cache", value: fmt.Sprintf("%.0f%%", snap.CachePercent), gauge: true, percent: snap.CachePercent},
 		{label: "tickets", value: fmt.Sprintf("%.0f%%", snap.TicketsPercent), gauge: true, percent: snap.TicketsPercent},
 	}
 	// Three columns is the useful maximum for nine metrics in three rows.
-	cols := min(3, max(1, (width+2)/30))
+	cols := min(3, max(1, (width+2)/38))
 	cellWidth := max(0, (width-(cols-1)*2)/cols)
+	valueWidths := make([]int, cols)
+	for col := range cols {
+		for row := range 3 {
+			valueWidths[col] = max(valueWidths[col], ansi.StringWidth(cells[row*cols+col].value))
+		}
+	}
 	rows := make([]string, 3)
 	for row := range rows {
 		var parts []string
 		for col := 0; col < cols; col++ {
-			parts = append(parts, metricCell(cells[row*cols+col], cellWidth))
+			parts = append(parts, metricCell(cells[row*cols+col], cellWidth, valueWidths[col]))
 		}
 		rows[row] = fitWidth(strings.Join(parts, "  "), width)
 	}
 	return strings.Join(rows, "\n")
 }
 
-func metricCell(m metric, width int) string {
+func compactCount(n int) string {
+	if n >= 1_000_000 {
+		return fmt.Sprintf("%.1fm", float64(n)/1_000_000)
+	}
+	if n >= 1000 {
+		return fmt.Sprintf("%dk", n/1000)
+	}
+	return fmt.Sprint(n)
+}
+
+func metricCell(m metric, width, valueWidth int) string {
 	t := theme.Current()
-	label := t.Muted.Render(m.label)
+	label := t.Muted.Render(fitWidth(m.label, 7))
 	value := t.Text.Render(m.value)
 	if m.gauge {
 		value = gaugeStyle(m.percent).Render(m.value)
 	}
-	vizWidth := min(miniSparkWidth, max(0, width-ansi.StringWidth(label+" "+value)-1))
+	valueWidth = min(valueWidth, max(0, width-8))
+	value = fitWidth(value, valueWidth)
+	vizWidth := min(miniSparkWidth, max(0, width-8-valueWidth-1))
 	if vizWidth == 0 {
 		return fitWidth(label+" "+value, width)
 	}
@@ -208,5 +224,5 @@ func metricCell(m metric, width int) string {
 	if m.gauge {
 		viz = Gauge(m.percent, vizWidth)
 	}
-	return fitWidth(label+" "+viz+" "+value, width)
+	return fitWidth(label+" "+value+" "+viz, width)
 }

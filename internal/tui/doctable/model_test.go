@@ -14,6 +14,7 @@ import (
 
 	"tango/internal/mjson"
 	"tango/internal/theme"
+	"tango/internal/theme/themetest"
 )
 
 func keyMsg(key string) tea.KeyPressMsg {
@@ -123,7 +124,7 @@ func TestWidthFitting(t *testing.T) {
 		{Key: "c", Value: "z"},
 	}})
 	m.SetSize(16, 3)
-	want := []visibleColumn{{index: 0, width: 3}, {index: 1, width: 2}, {index: 2, width: 5}}
+	want := []visibleColumn{{index: 0, width: 3}, {index: 1, width: 2}, {index: 2, width: 1}}
 	if got := m.visibleColumns(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("widths = %+v, want %+v", got, want)
 	}
@@ -347,9 +348,11 @@ func TestCursorRowStylesCoverEverySpan(t *testing.T) {
 			th.Text.Inherit(th.CursorRow).Render("  ") +
 			th.JSONNumber.Inherit(th.CursorRow).Render("12") +
 			th.Text.Inherit(th.CursorRow).Render("  ") +
-			th.JSONNull.Inherit(th.CursorRow).Render("null   ")
+			th.JSONNull.Inherit(th.CursorRow).Render("null") +
+			th.Text.Inherit(th.CursorRow).Render("   ")
 		lines := strings.Split(m.View(), "\n")
-		if lines[1] != expected {
+		themetest.Cursor(t, lines[1], m.width)
+		if lines[1] != theme.CursorLine(expected, m.width) {
 			t.Fatalf("cursor row lost a span background: got %q, want %q", lines[1], expected)
 		}
 		if lines[0] != th.Header.Render("  a    b   c      ") {
@@ -441,9 +444,10 @@ func TestJSONStylesAndFullWidthCursorFill(t *testing.T) {
 		expected.WriteString(tokenStyle(th, token.Kind).Inherit(th.CursorRow).Render(token.Text))
 	}
 	expected.WriteString(th.Text.Inherit(th.CursorRow).Render(strings.Repeat(" ", 78-m.jsonWidth)))
-	if got := strings.Split(m.View(), "\n")[0]; got != expected.String() {
+	if got := strings.Split(m.View(), "\n")[0]; got != theme.CursorLine(expected.String(), m.width) {
 		t.Fatalf("JSON cursor span styles: got %q, want %q", got, expected.String())
 	}
+	themetest.Cursor(t, strings.Split(m.View(), "\n")[0], m.width)
 }
 
 func TestJSONUnicodeClipping(t *testing.T) {

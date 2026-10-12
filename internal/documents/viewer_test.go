@@ -16,7 +16,7 @@ var users = state.Namespace{DB: "app", Coll: "users"}
 
 func TestDocTitle_StringID(t *testing.T) {
 	got := DocTitle(bson.D{{Key: "_id", Value: "abc123"}}, users, "")
-	if !strings.Contains(got, "abc123") || !strings.Contains(got, "users") {
+	if got != "abc123" {
 		t.Errorf("got %q", got)
 	}
 }
@@ -37,7 +37,7 @@ func TestDocTitle_CompoundIDIsLiteral(t *testing.T) {
 
 func TestDocTitle_NoID(t *testing.T) {
 	got := DocTitle(bson.D{{Key: "foo", Value: "bar"}}, users, "View")
-	if !strings.Contains(got, "View") || !strings.Contains(got, "users") {
+	if got != "View" {
 		t.Errorf("got %q", got)
 	}
 	if got := DocTitle(bson.D{}, state.Namespace{}, "View"); !strings.Contains(got, "View") {

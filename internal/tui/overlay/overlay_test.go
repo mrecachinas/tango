@@ -38,8 +38,9 @@ func TestConfirmSemantics(t *testing.T) {
 		key(tea.KeyEscape, ""), key(tea.KeyEnter, ""), key(tea.KeyDown, ""),
 	} {
 		m := NewConfirm("delete", "Delete 3 documents?")
-		m.SetSize(40, 1)
-		dimensions(t, m.View(), 40, 1)
+		m.SetSize(40, 24)
+		w, h := m.Dimensions()
+		dimensions(t, m.View(), w, h)
 		if m.Update(tea.WindowSizeMsg{Width: 40, Height: 1}) != nil {
 			t.Fatal("non-key message made a choice")
 		}
@@ -65,11 +66,12 @@ func TestTypeConfirmRequiresExactInput(t *testing.T) {
 	for _, text := range []string{"", "Orders", "orders ", " orders", "ORDERs", "wrong"} {
 		m := NewTypeConfirm("drop", "Type orders to drop sample_app.orders", "orders")
 		m.SetText(text)
-		m.SetSize(90, 1)
+		m.SetSize(90, 24)
 		if cmd := m.Update(key(tea.KeyEnter, "")); cmd != nil || !m.invalid || m.done {
 			t.Fatalf("%q unexpectedly confirmed", text)
 		}
-		dimensions(t, m.View(), 90, 1)
+		w, h := m.Dimensions()
+		dimensions(t, m.View(), w, h)
 		m.SetText("orders")
 		if event, ok := m.Update(key(tea.KeyEnter, ""))().(ConfirmedMsg); !ok || event.ID != "drop" {
 			t.Fatal("exact text did not confirm")
@@ -90,18 +92,47 @@ func TestTypeConfirmRequiresExactInput(t *testing.T) {
 	}
 }
 
-func TestInlineDimensions(t *testing.T) {
+func TestDialogDimensionsAndLayout(t *testing.T) {
 	confirm := NewConfirm("id", "界界👩‍💻delete documents?")
 	typed := NewTypeConfirm("id", "界界👩‍💻 Type orders", "orders")
 	typed.SetText("orders")
 	for _, w := range []int{0, 1, 2, 3, 4, 8, 20, 60, 100} {
-		confirm.SetSize(w, 1)
-		typed.SetSize(w, 1)
-		dimensions(t, confirm.View(), w, 1)
-		dimensions(t, typed.View(), w, 1)
-		if w >= 4 && !strings.HasSuffix(strings.TrimRight(ansi.Strip(confirm.View()), " "), "y/N") {
-			t.Fatal("question hid confirmation keys")
+		for _, h := range []int{0, 1, 4, 8, 24} {
+			confirm.SetSize(w, h)
+			typed.SetSize(w, h)
+			cw, ch := confirm.Dimensions()
+			tw, th := typed.Dimensions()
+			dimensions(t, confirm.View(), cw, ch)
+			dimensions(t, typed.View(), tw, th)
+			if cw > min(64, max(0, w-8)) || tw > min(64, max(0, w-8)) ||
+				ch > max(0, h-4) || th > max(0, h-4) {
+				t.Fatal("dialog exceeded its screen margins")
+			}
 		}
+	}
+	confirm = NewConfirm("delete", `Delete this document from sample_app.events? _id: ObjectId("012345678901234567890123")`)
+	confirm.SetSize(150, 38)
+	view := ansi.Strip(confirm.View())
+	if !strings.Contains(view, "Delete document") || !strings.Contains(view, "y delete · n/esc cancel") ||
+		!strings.HasPrefix(view, "╭") || !strings.Contains(view, "sample_app.events") {
+		t.Fatalf("bad compact confirm: %q", view)
+	}
+	if !strings.Contains(confirm.View(), "38;2;255;107;107") {
+		t.Fatal("destructive dialog border must use Err")
+	}
+	typed = NewTypeConfirm("drop", "Drop collection 'sample_app.orders'? This cannot be undone!", "orders")
+	typed.SetSize(150, 38)
+	view = ansi.Strip(typed.View())
+	if !strings.Contains(view, "Drop collection") || !strings.Contains(view, "Type orders to confirm") ||
+		!strings.Contains(view, "▏orders") || !strings.Contains(view, "enter drop · esc cancel") {
+		t.Fatalf("bad type dialog: %q", view)
+	}
+	if strings.Contains(view, "✓") {
+		t.Fatal("empty input must not show a match")
+	}
+	typed.SetText("orders")
+	if !strings.Contains(ansi.Strip(typed.View()), "✓") {
+		t.Fatal("exact input must show a live checkmark")
 	}
 }
 
@@ -184,9 +215,16 @@ func TestHelpScrollAndDimensions(t *testing.T) {
 		t.Fatal("half-page scroll failed")
 	}
 	m.Update(key('/', "/"))
+	if !m.Filtering() {
+		t.Fatal("empty explicit filter mode must be visible to the root")
+	}
 	m.Update(key('j', "j"))
 	if m.Filter() != "j" {
 		t.Fatal("explicit filter mode swallowed navigation-like input")
+	}
+	m.Update(key(tea.KeyEnter, ""))
+	if m.Filtering() {
+		t.Fatal("enter must leave filter mode")
 	}
 }
 
@@ -214,5 +252,37 @@ func TestPlaceSizesAndOversizedBox(t *testing.T) {
 			dimensions(t, view, w, h)
 			dimensions(t, Place("", "", w, h), w, h)
 		}
+	}
+}
+
+func TestHelpLongKeysAndGhostInput(t *testing.T) {
+	keys := ":export json|csv [all] [path]"
+	rows := sectionRows([]Section{{Title: "Commands", Bindings: []Binding{
+		{Keys: keys, Desc: "Export every matching document to the chosen destination without losing syntax."},
+	}}}, 50)
+	plain := ansi.Strip(strings.Join(rows, "\n"))
+	if !strings.Contains(plain, keys) || strings.Contains(plain, "…") {
+		t.Fatalf("help keys must not truncate: %q", plain)
+	}
+	if !strings.HasPrefix(ansi.Strip(rows[2]), strings.Repeat(" ", 26)) {
+		t.Fatal("long-key description must have a hanging indent")
+	}
+	m := NewHelp(helpSections())
+	m.SetSize(150, 38)
+	w, h := m.Dimensions()
+	if w > 110 || h > 34 {
+		t.Fatal("help exceeds width/margins")
+	}
+	if !strings.Contains(ansi.Strip(m.View()), "/ filter ▏keys or descriptions") {
+		t.Fatal("cursor must precede the ghost placeholder")
+	}
+	m.SetSize(90, 24)
+	if strings.Contains(ansi.Strip(m.lines[0]), "Indexes") {
+		t.Fatal("narrow help must use one scrollable column")
+	}
+	base := fit("base", 150, 38)
+	placed := strings.Split(ansi.Strip(Place(base, m.View(), 150, 38)), "\n")
+	if strings.Contains(placed[0], "╭") || strings.Contains(placed[1], "╭") {
+		t.Fatal("help collided with the screen's top border")
 	}
 }
