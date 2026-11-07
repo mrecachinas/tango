@@ -1,0 +1,28 @@
+{
+  "name": "tango",
+  "image": "mcr.microsoft.com/devcontainers/go:2-1.26-bookworm",
+  "features": {
+    // Docker is needed for `make test-e2e` and the `make example-*` targets.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [27017],
+  "portsAttributes": {
+    "27017": {
+      "label": "MongoDB (example)",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "go mod download && docker pull mongo:7",
+  "customizations": {
+    "vscode": {
+      "extensions": ["golang.go"],
+      "settings": {
+        "go.lintTool": "golangci-lint",
+        "go.lintOnSave": "package",
+        "[go]": {
+          "editor.formatOnSave": true
+        }
+      }
+    }
+  }
+}

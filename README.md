@@ -32,6 +32,10 @@ cd tango
 make build
 ```
 
+Or open the repo in a [dev container](https://containers.dev) (VS Code, Codespaces).
+It ships Go, `golangci-lint`, and Docker-in-Docker, so `make test-e2e` and
+`make example-run` work inside the container.
+
 ## Usage
 
 ```sh
