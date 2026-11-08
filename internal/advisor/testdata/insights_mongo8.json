@@ -1,0 +1,6558 @@
+{
+ "level": {
+  "was": {
+   "$numberInt": "1"
+  },
+  "slowms": {
+   "$numberInt": "50"
+  },
+  "slowinprogms": {
+   "$numberLong": "5000"
+  },
+  "sampleRate": {
+   "$numberDouble": "1.0"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  },
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1794163769,
+     "i": 25
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "subType": "00"
+     }
+    },
+    "keyId": {
+     "$numberLong": "0"
+    }
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1794163769,
+    "i": 25
+   }
+  }
+ },
+ "profile": [
+  {
+   "op": "query",
+   "ns": "shop.users",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "users",
+    "filter": {
+     "$where": "sleep(2500); return true"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 25
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112671"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "2"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "2"
+   },
+   "nreturned": {
+    "$numberInt": "2"
+   },
+   "planCacheShapeHash": "8EED0006",
+   "queryHash": "8EED0006",
+   "planCacheKey": "C68C78C0",
+   "queryShapeHash": "E2DCC99444DB18C41A56EF87805DF0736F9C5561DD26AE3F070A9749FFC7A8A9",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "5"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "155"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "298"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "897248"
+   },
+   "millis": {
+    "$numberInt": "5014"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "490"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "$where": {
+      "$code": "sleep(2500); return true"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "2"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "5010"
+    },
+    "works": {
+     "$numberInt": "3"
+    },
+    "advanced": {
+     "$numberInt": "2"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "2"
+    },
+    "restoreState": {
+     "$numberInt": "2"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "2"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163774911"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {},
+    "limit": {
+     "$numberLong": "5"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 25
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112670"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "5"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "5"
+   },
+   "planCacheShapeHash": "4E45B701",
+   "queryHash": "4E45B701",
+   "planCacheKey": "36FF8BFB",
+   "queryShapeHash": "1B58564508E095779B6F7449CDCD1780CEB24DE43B641EC071133D4407174EA1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "830"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "75292"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "40"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "5"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "6"
+    },
+    "advanced": {
+     "$numberInt": "5"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "5"
+    },
+    "inputStage": {
+     "stage": "COLLSCAN",
+     "nReturned": {
+      "$numberInt": "5"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "5"
+     },
+     "advanced": {
+      "$numberInt": "5"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "0"
+     },
+     "restoreState": {
+      "$numberInt": "0"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "direction": "forward",
+     "docsExamined": {
+      "$numberInt": "5"
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769897"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "remove",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "q": {
+     "cust": "nobody"
+    },
+    "limit": {
+     "$numberInt": "0"
+    }
+   },
+   "opid": {
+    "$numberInt": "112669"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "20000"
+   },
+   "ndeleted": {
+    "$numberInt": "0"
+   },
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "planCacheShapeHash": "E46F9543",
+   "queryHash": "E46F9543",
+   "planCacheKey": "DAC1F2BA",
+   "locks": {
+    "ReplicationStateTransition": {
+     "acquireCount": {
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    },
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "1"
+      },
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    },
+    "Database": {
+     "acquireCount": {
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    },
+    "Collection": {
+     "acquireCount": {
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    }
+   },
+   "flowControl": {
+    "acquireCount": {
+     "$numberLong": "1"
+    }
+   },
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "cpuNanos": {
+    "$numberInt": "5689707"
+   },
+   "millis": {
+    "$numberInt": "5"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "57"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "BATCHED_DELETE",
+    "nReturned": {
+     "$numberInt": "0"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "0"
+    },
+    "needTime": {
+     "$numberInt": "20000"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "nWouldDelete": {
+     "$numberInt": "0"
+    },
+    "inputStage": {
+     "stage": "COLLSCAN",
+     "filter": {
+      "cust": {
+       "$eq": "nobody"
+      }
+     },
+     "nReturned": {
+      "$numberInt": "0"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "20001"
+     },
+     "advanced": {
+      "$numberInt": "0"
+     },
+     "needTime": {
+      "$numberInt": "20000"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "0"
+     },
+     "restoreState": {
+      "$numberInt": "0"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "direction": "forward",
+     "docsExamined": {
+      "$numberInt": "20000"
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769896"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "update",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "q": {
+     "cust": "c9"
+    },
+    "u": {
+     "$set": {
+      "y": {
+       "$numberInt": "1"
+      }
+     }
+    },
+    "multi": true,
+    "upsert": false
+   },
+   "opid": {
+    "$numberInt": "112668"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "20000"
+   },
+   "nMatched": {
+    "$numberInt": "20"
+   },
+   "nModified": {
+    "$numberInt": "20"
+   },
+   "nUpserted": {
+    "$numberInt": "0"
+   },
+   "keysInserted": {
+    "$numberInt": "0"
+   },
+   "keysDeleted": {
+    "$numberInt": "0"
+   },
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "planCacheShapeHash": "E46F9543",
+   "queryHash": "E46F9543",
+   "planCacheKey": "DAC1F2BA",
+   "locks": {
+    "ReplicationStateTransition": {
+     "acquireCount": {
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    },
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "1"
+      },
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    },
+    "Database": {
+     "acquireCount": {
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    },
+    "Collection": {
+     "acquireCount": {
+      "w": {
+       "$numberLong": "1"
+      }
+     }
+    }
+   },
+   "flowControl": {
+    "acquireCount": {
+     "$numberLong": "1"
+    }
+   },
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "15"
+     }
+    }
+   },
+   "cpuNanos": {
+    "$numberInt": "6067209"
+   },
+   "millis": {
+    "$numberInt": "6"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "58"
+   },
+   "totalOplogSlotDurationMicros": {
+    "$numberInt": "70"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "UPDATE",
+    "nReturned": {
+     "$numberInt": "0"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "0"
+    },
+    "needTime": {
+     "$numberInt": "20000"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "nMatched": {
+     "$numberInt": "20"
+    },
+    "nWouldModify": {
+     "$numberInt": "20"
+    },
+    "nWouldUpsert": {
+     "$numberInt": "0"
+    },
+    "inputStage": {
+     "stage": "COLLSCAN",
+     "filter": {
+      "cust": {
+       "$eq": "c9"
+      }
+     },
+     "nReturned": {
+      "$numberInt": "20"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "20001"
+     },
+     "advanced": {
+      "$numberInt": "20"
+     },
+     "needTime": {
+      "$numberInt": "19980"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "20"
+     },
+     "restoreState": {
+      "$numberInt": "20"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "direction": "forward",
+     "docsExamined": {
+      "$numberInt": "20000"
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769888"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "command",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "aggregate": "orders",
+    "pipeline": [
+     {
+      "$match": {
+       "status": "A"
+      }
+     },
+     {
+      "$group": {
+       "_id": {
+        "$numberInt": "1"
+       },
+       "n": {
+        "$sum": {
+         "$numberInt": "1"
+        }
+       }
+      }
+     }
+    ],
+    "cursor": {},
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112667"
+   },
+   "keysExamined": {
+    "$numberInt": "5000"
+   },
+   "docsExamined": {
+    "$numberInt": "0"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "1"
+   },
+   "planCacheShapeHash": "2BC16FB2",
+   "queryHash": "2BC16FB2",
+   "planCacheKey": "6C65BF6A",
+   "queryShapeHash": "F1C65D2303CEC0FB834ED1C608E2E95BD51B7B51DD1A9A2F8EF4B4FF4A8703B3",
+   "queryFramework": "sbe",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "writeConcern": {
+    "w": "majority",
+    "wtimeout": {
+     "$numberInt": "0"
+    },
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "3"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "249"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "768834"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "COUNT_SCAN { status: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "129"
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769882"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.users",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "users",
+    "filter": {
+     "name": "a"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112666"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "2"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "1"
+   },
+   "planCacheShapeHash": "F4DDDCDC",
+   "queryHash": "F4DDDCDC",
+   "planCacheKey": "E45FBFA1",
+   "queryShapeHash": "C2276CA6016253C67B0AD0C90B9864B5A7DE409381485F53B5C6A6C91AC33C4B",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "261"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "56125"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "29"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "name": {
+      "$eq": "a"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "1"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "3"
+    },
+    "advanced": {
+     "$numberInt": "1"
+    },
+    "needTime": {
+     "$numberInt": "1"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "2"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769881"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "getmore",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "getMore": {
+     "$numberLong": "1299431523751119527"
+    },
+    "collection": "orders",
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop"
+   },
+   "originatingCommand": {
+    "aggregate": "orders",
+    "pipeline": [
+     {
+      "$match": {
+       "status": "A"
+      }
+     },
+     {
+      "$group": {
+       "_id": "$cust",
+       "n": {
+        "$sum": {
+         "$numberInt": "1"
+        }
+       }
+      }
+     }
+    ],
+    "cursor": {},
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112665"
+   },
+   "cursorid": {
+    "$numberLong": "1299431523751119527"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "0"
+   },
+   "peakTrackedMemBytes": {
+    "$numberLong": "12500"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "149"
+   },
+   "planCacheShapeHash": "8424370E",
+   "queryHash": "8424370E",
+   "planCacheKey": "F2295B15",
+   "queryShapeHash": "4BEFBCE4C1B43D73871B859A5D25F1E95848EB041F471C2D64E42D8DFD877744",
+   "queryFramework": "sbe",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "writeConcern": {
+    "w": "majority",
+    "wtimeout": {
+     "$numberInt": "0"
+    },
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "4719"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "187583"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { status: 1 }",
+   "execStats": {
+    "stage": "project",
+    "planNodeId": {
+     "$numberInt": "4"
+    },
+    "nReturned": {
+     "$numberInt": "250"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "opens": {
+     "$numberInt": "1"
+    },
+    "closes": {
+     "$numberInt": "1"
+    },
+    "saveState": {
+     "$numberInt": "1"
+    },
+    "restoreState": {
+     "$numberInt": "1"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "projections": {
+     "12": "newBsonObj(\"_id\", s11, \"n\", s9) "
+    },
+    "inputStage": {
+     "stage": "group",
+     "planNodeId": {
+      "$numberInt": "4"
+     },
+     "nReturned": {
+      "$numberInt": "250"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "opens": {
+      "$numberInt": "1"
+     },
+     "closes": {
+      "$numberInt": "1"
+     },
+     "saveState": {
+      "$numberInt": "1"
+     },
+     "restoreState": {
+      "$numberInt": "1"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "groupBySlots": [
+      {
+       "$numberLong": "11"
+      }
+     ],
+     "expressions": {
+      "9": "_internalCount::accumulate(s9, 1) ",
+      "initExprs": {
+       "9": null,
+       "mergingExprs": {
+        "10": "_internalCount::merge(s10) "
+       }
+      }
+     },
+     "usedDisk": false,
+     "spills": {
+      "$numberInt": "0"
+     },
+     "spilledBytes": {
+      "$numberInt": "0"
+     },
+     "spilledRecords": {
+      "$numberInt": "0"
+     },
+     "spilledDataStorageSize": {
+      "$numberInt": "0"
+     },
+     "peakTrackedMemBytes": {
+      "$numberInt": "12500"
+     },
+     "inputStage": {
+      "stage": "project",
+      "planNodeId": {
+       "$numberInt": "4"
+      },
+      "nReturned": {
+       "$numberInt": "5000"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "opens": {
+       "$numberInt": "1"
+      },
+      "closes": {
+       "$numberInt": "1"
+      },
+      "saveState": {
+       "$numberInt": "1"
+      },
+      "restoreState": {
+       "$numberInt": "1"
+      },
+      "isEOF": {
+       "$numberInt": "1"
+      },
+      "projections": {
+       "11": "(s8 ?: null) "
+      },
+      "inputStage": {
+       "stage": "fetch",
+       "planNodeId": {
+        "$numberInt": "2"
+       },
+       "nReturned": {
+        "$numberInt": "5000"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "opens": {
+        "$numberInt": "1"
+       },
+       "closes": {
+        "$numberInt": "1"
+       },
+       "saveState": {
+        "$numberInt": "1"
+       },
+       "restoreState": {
+        "$numberInt": "1"
+       },
+       "isEOF": {
+        "$numberInt": "1"
+       },
+       "numReads": {
+        "$numberInt": "5000"
+       },
+       "inputStage": {
+        "stage": "ixseek",
+        "planNodeId": {
+         "$numberInt": "1"
+        },
+        "nReturned": {
+         "$numberInt": "5000"
+        },
+        "executionTimeMillisEstimate": {
+         "$numberInt": "0"
+        },
+        "opens": {
+         "$numberInt": "1"
+        },
+        "closes": {
+         "$numberInt": "1"
+        },
+        "saveState": {
+         "$numberInt": "1"
+        },
+        "restoreState": {
+         "$numberInt": "1"
+        },
+        "isEOF": {
+         "$numberInt": "1"
+        },
+        "indexName": "status_1",
+        "keysExamined": {
+         "$numberInt": "5000"
+        },
+        "seeks": {
+         "$numberInt": "1"
+        },
+        "numReads": {
+         "$numberInt": "5001"
+        },
+        "indexKeySlot": {
+         "$numberInt": "3"
+        },
+        "recordIdSlot": {
+         "$numberInt": "1"
+        },
+        "snapshotIdSlot": {
+         "$numberInt": "4"
+        },
+        "indexIdentSlot": {
+         "$numberInt": "2"
+        },
+        "outputSlots": [],
+        "indexKeysToInclude": "00000000000000000000000000000000",
+        "seekKeyLow": "KS(3C410001) ",
+        "seekKeyHigh": "KS(3C4100FE) "
+       }
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769880"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "command",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "aggregate": "orders",
+    "pipeline": [
+     {
+      "$match": {
+       "status": "A"
+      }
+     },
+     {
+      "$group": {
+       "_id": "$cust",
+       "n": {
+        "$sum": {
+         "$numberInt": "1"
+        }
+       }
+      }
+     }
+    ],
+    "cursor": {},
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112664"
+   },
+   "cursorid": {
+    "$numberLong": "1299431523751119527"
+   },
+   "keysExamined": {
+    "$numberInt": "5000"
+   },
+   "docsExamined": {
+    "$numberInt": "5000"
+   },
+   "inUseTrackedMemBytes": {
+    "$numberLong": "12500"
+   },
+   "peakTrackedMemBytes": {
+    "$numberLong": "12500"
+   },
+   "fromMultiPlanner": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "101"
+   },
+   "planCacheShapeHash": "8424370E",
+   "queryHash": "8424370E",
+   "planCacheKey": "F2295B15",
+   "queryShapeHash": "4BEFBCE4C1B43D73871B859A5D25F1E95848EB041F471C2D64E42D8DFD877744",
+   "queryFramework": "sbe",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "writeConcern": {
+    "w": "majority",
+    "wtimeout": {
+     "$numberInt": "0"
+    },
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "3"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "3232"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "2788459"
+   },
+   "millis": {
+    "$numberInt": "2"
+   },
+   "planSummary": "IXSCAN { status: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "337"
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769879"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.users",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "users",
+    "filter": {
+     "name": "a"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112663"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "2"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "1"
+   },
+   "planCacheShapeHash": "F4DDDCDC",
+   "queryHash": "F4DDDCDC",
+   "planCacheKey": "E45FBFA1",
+   "queryShapeHash": "C2276CA6016253C67B0AD0C90B9864B5A7DE409381485F53B5C6A6C91AC33C4B",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "261"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "63625"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "35"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "name": {
+      "$eq": "a"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "1"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "3"
+    },
+    "advanced": {
+     "$numberInt": "1"
+    },
+    "needTime": {
+     "$numberInt": "1"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "2"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769876"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "getmore",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "getMore": {
+     "$numberLong": "7565535481080018744"
+    },
+    "collection": "orders",
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop"
+   },
+   "originatingCommand": {
+    "aggregate": "orders",
+    "pipeline": [
+     {
+      "$match": {
+       "status": "A"
+      }
+     },
+     {
+      "$group": {
+       "_id": "$cust",
+       "n": {
+        "$sum": {
+         "$numberInt": "1"
+        }
+       }
+      }
+     }
+    ],
+    "cursor": {},
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112662"
+   },
+   "cursorid": {
+    "$numberLong": "7565535481080018744"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "0"
+   },
+   "peakTrackedMemBytes": {
+    "$numberLong": "12500"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "149"
+   },
+   "planCacheShapeHash": "8424370E",
+   "queryHash": "8424370E",
+   "planCacheKey": "F2295B15",
+   "queryShapeHash": "4BEFBCE4C1B43D73871B859A5D25F1E95848EB041F471C2D64E42D8DFD877744",
+   "queryFramework": "sbe",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "writeConcern": {
+    "w": "majority",
+    "wtimeout": {
+     "$numberInt": "0"
+    },
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "4717"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "154834"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { status: 1 }",
+   "execStats": {
+    "stage": "project",
+    "planNodeId": {
+     "$numberInt": "4"
+    },
+    "nReturned": {
+     "$numberInt": "250"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "opens": {
+     "$numberInt": "1"
+    },
+    "closes": {
+     "$numberInt": "1"
+    },
+    "saveState": {
+     "$numberInt": "1"
+    },
+    "restoreState": {
+     "$numberInt": "1"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "projections": {
+     "12": "newBsonObj(\"_id\", s11, \"n\", s9) "
+    },
+    "inputStage": {
+     "stage": "group",
+     "planNodeId": {
+      "$numberInt": "4"
+     },
+     "nReturned": {
+      "$numberInt": "250"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "opens": {
+      "$numberInt": "1"
+     },
+     "closes": {
+      "$numberInt": "1"
+     },
+     "saveState": {
+      "$numberInt": "1"
+     },
+     "restoreState": {
+      "$numberInt": "1"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "groupBySlots": [
+      {
+       "$numberLong": "11"
+      }
+     ],
+     "expressions": {
+      "9": "_internalCount::accumulate(s9, 1) ",
+      "initExprs": {
+       "9": null,
+       "mergingExprs": {
+        "10": "_internalCount::merge(s10) "
+       }
+      }
+     },
+     "usedDisk": false,
+     "spills": {
+      "$numberInt": "0"
+     },
+     "spilledBytes": {
+      "$numberInt": "0"
+     },
+     "spilledRecords": {
+      "$numberInt": "0"
+     },
+     "spilledDataStorageSize": {
+      "$numberInt": "0"
+     },
+     "peakTrackedMemBytes": {
+      "$numberInt": "12500"
+     },
+     "inputStage": {
+      "stage": "project",
+      "planNodeId": {
+       "$numberInt": "4"
+      },
+      "nReturned": {
+       "$numberInt": "5000"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "opens": {
+       "$numberInt": "1"
+      },
+      "closes": {
+       "$numberInt": "1"
+      },
+      "saveState": {
+       "$numberInt": "1"
+      },
+      "restoreState": {
+       "$numberInt": "1"
+      },
+      "isEOF": {
+       "$numberInt": "1"
+      },
+      "projections": {
+       "11": "(s8 ?: null) "
+      },
+      "inputStage": {
+       "stage": "fetch",
+       "planNodeId": {
+        "$numberInt": "2"
+       },
+       "nReturned": {
+        "$numberInt": "5000"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "opens": {
+        "$numberInt": "1"
+       },
+       "closes": {
+        "$numberInt": "1"
+       },
+       "saveState": {
+        "$numberInt": "1"
+       },
+       "restoreState": {
+        "$numberInt": "1"
+       },
+       "isEOF": {
+        "$numberInt": "1"
+       },
+       "numReads": {
+        "$numberInt": "5000"
+       },
+       "inputStage": {
+        "stage": "ixseek",
+        "planNodeId": {
+         "$numberInt": "1"
+        },
+        "nReturned": {
+         "$numberInt": "5000"
+        },
+        "executionTimeMillisEstimate": {
+         "$numberInt": "0"
+        },
+        "opens": {
+         "$numberInt": "1"
+        },
+        "closes": {
+         "$numberInt": "1"
+        },
+        "saveState": {
+         "$numberInt": "1"
+        },
+        "restoreState": {
+         "$numberInt": "1"
+        },
+        "isEOF": {
+         "$numberInt": "1"
+        },
+        "indexName": "status_1",
+        "keysExamined": {
+         "$numberInt": "5000"
+        },
+        "seeks": {
+         "$numberInt": "1"
+        },
+        "numReads": {
+         "$numberInt": "5001"
+        },
+        "indexKeySlot": {
+         "$numberInt": "3"
+        },
+        "recordIdSlot": {
+         "$numberInt": "1"
+        },
+        "snapshotIdSlot": {
+         "$numberInt": "4"
+        },
+        "indexIdentSlot": {
+         "$numberInt": "2"
+        },
+        "outputSlots": [],
+        "indexKeysToInclude": "00000000000000000000000000000000",
+        "seekKeyLow": "KS(3C410001) ",
+        "seekKeyHigh": "KS(3C4100FE) "
+       }
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769875"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "command",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "aggregate": "orders",
+    "pipeline": [
+     {
+      "$match": {
+       "status": "A"
+      }
+     },
+     {
+      "$group": {
+       "_id": "$cust",
+       "n": {
+        "$sum": {
+         "$numberInt": "1"
+        }
+       }
+      }
+     }
+    ],
+    "cursor": {},
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112661"
+   },
+   "cursorid": {
+    "$numberLong": "7565535481080018744"
+   },
+   "keysExamined": {
+    "$numberInt": "5000"
+   },
+   "docsExamined": {
+    "$numberInt": "5000"
+   },
+   "inUseTrackedMemBytes": {
+    "$numberLong": "12500"
+   },
+   "peakTrackedMemBytes": {
+    "$numberLong": "12500"
+   },
+   "fromMultiPlanner": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "101"
+   },
+   "planCacheShapeHash": "8424370E",
+   "queryHash": "8424370E",
+   "planCacheKey": "F2295B15",
+   "queryShapeHash": "4BEFBCE4C1B43D73871B859A5D25F1E95848EB041F471C2D64E42D8DFD877744",
+   "queryFramework": "sbe",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "writeConcern": {
+    "w": "majority",
+    "wtimeout": {
+     "$numberInt": "0"
+    },
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "3234"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "2949666"
+   },
+   "millis": {
+    "$numberInt": "2"
+   },
+   "planSummary": "IXSCAN { status: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "448"
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769875"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "getmore",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "getMore": {
+     "$numberLong": "2399611763440968034"
+    },
+    "collection": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop"
+   },
+   "originatingCommand": {
+    "find": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "filter": {
+     "status": "B",
+     "qty": {
+      "$gt": {
+       "$numberInt": "5"
+      }
+     }
+    },
+    "limit": {
+     "$numberLong": "45"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112660"
+   },
+   "cursorid": {
+    "$numberLong": "2399611763440968034"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "0"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "5"
+   },
+   "planCacheShapeHash": "59AE6DC9",
+   "queryHash": "59AE6DC9",
+   "planCacheKey": "6317FCF8",
+   "queryShapeHash": "C3D7AAE93800EB24D9E99A0795EE99A9E53F6D509B72CD46E8744357570038BC",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "848"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "47083"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { status: 1, qty: 1 }",
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "45"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "46"
+    },
+    "advanced": {
+     "$numberInt": "45"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "5"
+    },
+    "restoreState": {
+     "$numberInt": "5"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "45"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "nReturned": {
+      "$numberInt": "45"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "45"
+     },
+     "advanced": {
+      "$numberInt": "45"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "5"
+     },
+     "restoreState": {
+      "$numberInt": "5"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "nss": "shop.orders",
+     "docsExamined": {
+      "$numberInt": "45"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "45"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "45"
+      },
+      "advanced": {
+       "$numberInt": "45"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "5"
+      },
+      "restoreState": {
+       "$numberInt": "5"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "nss": "shop.orders",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1_qty_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": [],
+       "qty": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"B\", \"B\"]"
+       ],
+       "qty": [
+        "(5, inf]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "45"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      },
+      "peakTrackedMemBytes": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769871"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "getmore",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "getMore": {
+     "$numberLong": "2399611763440968034"
+    },
+    "collection": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop"
+   },
+   "originatingCommand": {
+    "find": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "filter": {
+     "status": "B",
+     "qty": {
+      "$gt": {
+       "$numberInt": "5"
+      }
+     }
+    },
+    "limit": {
+     "$numberLong": "45"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112659"
+   },
+   "cursorid": {
+    "$numberLong": "2399611763440968034"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "0"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "10"
+   },
+   "planCacheShapeHash": "59AE6DC9",
+   "queryHash": "59AE6DC9",
+   "planCacheKey": "6317FCF8",
+   "queryShapeHash": "C3D7AAE93800EB24D9E99A0795EE99A9E53F6D509B72CD46E8744357570038BC",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "1484"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "34958"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { status: 1, qty: 1 }",
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "45"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "45"
+    },
+    "advanced": {
+     "$numberInt": "45"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "4"
+    },
+    "restoreState": {
+     "$numberInt": "4"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "45"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "nReturned": {
+      "$numberInt": "45"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "45"
+     },
+     "advanced": {
+      "$numberInt": "45"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "4"
+     },
+     "restoreState": {
+      "$numberInt": "4"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "nss": "shop.orders",
+     "docsExamined": {
+      "$numberInt": "45"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "45"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "45"
+      },
+      "advanced": {
+       "$numberInt": "45"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "4"
+      },
+      "restoreState": {
+       "$numberInt": "4"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "nss": "shop.orders",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1_qty_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": [],
+       "qty": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"B\", \"B\"]"
+       ],
+       "qty": [
+        "(5, inf]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "45"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      },
+      "peakTrackedMemBytes": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769871"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "getmore",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "getMore": {
+     "$numberLong": "2399611763440968034"
+    },
+    "collection": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop"
+   },
+   "originatingCommand": {
+    "find": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "filter": {
+     "status": "B",
+     "qty": {
+      "$gt": {
+       "$numberInt": "5"
+      }
+     }
+    },
+    "limit": {
+     "$numberLong": "45"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112658"
+   },
+   "cursorid": {
+    "$numberLong": "2399611763440968034"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "0"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "10"
+   },
+   "planCacheShapeHash": "59AE6DC9",
+   "queryHash": "59AE6DC9",
+   "planCacheKey": "6317FCF8",
+   "queryShapeHash": "C3D7AAE93800EB24D9E99A0795EE99A9E53F6D509B72CD46E8744357570038BC",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "1484"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "33250"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { status: 1, qty: 1 }",
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "45"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "45"
+    },
+    "advanced": {
+     "$numberInt": "45"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "3"
+    },
+    "restoreState": {
+     "$numberInt": "3"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "45"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "nReturned": {
+      "$numberInt": "45"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "45"
+     },
+     "advanced": {
+      "$numberInt": "45"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "3"
+     },
+     "restoreState": {
+      "$numberInt": "3"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "nss": "shop.orders",
+     "docsExamined": {
+      "$numberInt": "45"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "45"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "45"
+      },
+      "advanced": {
+       "$numberInt": "45"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "3"
+      },
+      "restoreState": {
+       "$numberInt": "3"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "nss": "shop.orders",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1_qty_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": [],
+       "qty": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"B\", \"B\"]"
+       ],
+       "qty": [
+        "(5, inf]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "45"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      },
+      "peakTrackedMemBytes": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769870"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "getmore",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "getMore": {
+     "$numberLong": "2399611763440968034"
+    },
+    "collection": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop"
+   },
+   "originatingCommand": {
+    "find": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "filter": {
+     "status": "B",
+     "qty": {
+      "$gt": {
+       "$numberInt": "5"
+      }
+     }
+    },
+    "limit": {
+     "$numberLong": "45"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112657"
+   },
+   "cursorid": {
+    "$numberLong": "2399611763440968034"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "0"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "10"
+   },
+   "planCacheShapeHash": "59AE6DC9",
+   "queryHash": "59AE6DC9",
+   "planCacheKey": "6317FCF8",
+   "queryShapeHash": "C3D7AAE93800EB24D9E99A0795EE99A9E53F6D509B72CD46E8744357570038BC",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "11"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "1474"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "52209"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { status: 1, qty: 1 }",
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "45"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "45"
+    },
+    "advanced": {
+     "$numberInt": "45"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "2"
+    },
+    "restoreState": {
+     "$numberInt": "2"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "45"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "nReturned": {
+      "$numberInt": "45"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "45"
+     },
+     "advanced": {
+      "$numberInt": "45"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "2"
+     },
+     "restoreState": {
+      "$numberInt": "2"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "nss": "shop.orders",
+     "docsExamined": {
+      "$numberInt": "45"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "45"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "45"
+      },
+      "advanced": {
+       "$numberInt": "45"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "2"
+      },
+      "restoreState": {
+       "$numberInt": "2"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "nss": "shop.orders",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1_qty_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": [],
+       "qty": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"B\", \"B\"]"
+       ],
+       "qty": [
+        "(5, inf]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "45"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      },
+      "peakTrackedMemBytes": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769870"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "batchSize": {
+     "$numberInt": "10"
+    },
+    "filter": {
+     "status": "B",
+     "qty": {
+      "$gt": {
+       "$numberInt": "5"
+      }
+     }
+    },
+    "limit": {
+     "$numberLong": "45"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112656"
+   },
+   "cursorid": {
+    "$numberLong": "2399611763440968034"
+   },
+   "keysExamined": {
+    "$numberInt": "45"
+   },
+   "docsExamined": {
+    "$numberInt": "45"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "10"
+   },
+   "planCacheShapeHash": "59AE6DC9",
+   "queryHash": "59AE6DC9",
+   "planCacheKey": "6317FCF8",
+   "queryShapeHash": "C3D7AAE93800EB24D9E99A0795EE99A9E53F6D509B72CD46E8744357570038BC",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "11"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "1471"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "334167"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { status: 1, qty: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "282"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "45"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "45"
+    },
+    "advanced": {
+     "$numberInt": "45"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "2"
+    },
+    "restoreState": {
+     "$numberInt": "1"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "45"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "nReturned": {
+      "$numberInt": "45"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "45"
+     },
+     "advanced": {
+      "$numberInt": "45"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "2"
+     },
+     "restoreState": {
+      "$numberInt": "1"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "nss": "shop.orders",
+     "docsExamined": {
+      "$numberInt": "45"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "45"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "45"
+      },
+      "advanced": {
+       "$numberInt": "45"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "2"
+      },
+      "restoreState": {
+       "$numberInt": "1"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "nss": "shop.orders",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1_qty_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": [],
+       "qty": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"B\", \"B\"]"
+       ],
+       "qty": [
+        "(5, inf]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "45"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      },
+      "peakTrackedMemBytes": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769869"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "sku": "s2"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112655"
+   },
+   "keysExamined": {
+    "$numberInt": "1"
+   },
+   "docsExamined": {
+    "$numberInt": "1"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "1"
+   },
+   "queryShapeHash": "00B455DB7B4E83A339E83A95ADA7BA8D12EC7E5108A3553D0C4E7B93870B772B",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "data": {
+     "bytesRead": {
+      "$numberLong": "14740"
+     },
+     "timeReadingMicros": {
+      "$numberLong": "14"
+     }
+    },
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "346"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "78500"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "EXPRESS_IXSCAN { sku: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "37"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "EXPRESS_IXSCAN",
+    "keyPattern": "{ sku: 1 }",
+    "indexName": "sku_1",
+    "keysExamined": {
+     "$numberInt": "1"
+    },
+    "docsExamined": {
+     "$numberInt": "1"
+    },
+    "nReturned": {
+     "$numberInt": "1"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769868"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "status": "A"
+    },
+    "limit": {
+     "$numberLong": "10"
+    },
+    "sort": {
+     "created": {
+      "$numberInt": "-1"
+     }
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112654"
+   },
+   "keysExamined": {
+    "$numberInt": "40"
+   },
+   "docsExamined": {
+    "$numberInt": "40"
+   },
+   "fromPlanCache": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "10"
+   },
+   "planCacheShapeHash": "A780B54A",
+   "queryHash": "A780B54A",
+   "planCacheKey": "ADF95946",
+   "queryShapeHash": "3CF4A37CD608D75FE2C130F4C85BE4787C11F18D71FDC3D9CA8A0552A59E0EF1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "4"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "1495"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "128792"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { created: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "100"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "CACHED_PLAN",
+    "nReturned": {
+     "$numberInt": "10"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "11"
+    },
+    "advanced": {
+     "$numberInt": "10"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "inputStage": {
+     "stage": "LIMIT",
+     "nReturned": {
+      "$numberInt": "10"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "40"
+     },
+     "advanced": {
+      "$numberInt": "10"
+     },
+     "needTime": {
+      "$numberInt": "30"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "0"
+     },
+     "restoreState": {
+      "$numberInt": "0"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "limitAmount": {
+      "$numberInt": "10"
+     },
+     "inputStage": {
+      "stage": "FETCH",
+      "filter": {
+       "status": {
+        "$eq": "A"
+       }
+      },
+      "nReturned": {
+       "$numberInt": "10"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "40"
+      },
+      "advanced": {
+       "$numberInt": "10"
+      },
+      "needTime": {
+       "$numberInt": "30"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "0"
+      },
+      "restoreState": {
+       "$numberInt": "0"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "docsExamined": {
+       "$numberInt": "40"
+      },
+      "alreadyHasObj": {
+       "$numberInt": "0"
+      },
+      "inputStage": {
+       "stage": "IXSCAN",
+       "nReturned": {
+        "$numberInt": "40"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "works": {
+        "$numberInt": "40"
+       },
+       "advanced": {
+        "$numberInt": "40"
+       },
+       "needTime": {
+        "$numberInt": "0"
+       },
+       "needYield": {
+        "$numberInt": "0"
+       },
+       "saveState": {
+        "$numberInt": "0"
+       },
+       "restoreState": {
+        "$numberInt": "0"
+       },
+       "isEOF": {
+        "$numberInt": "0"
+       },
+       "keyPattern": {
+        "created": {
+         "$numberInt": "1"
+        }
+       },
+       "indexName": "created_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "created": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": {
+        "$numberInt": "2"
+       },
+       "direction": "backward",
+       "indexBounds": {
+        "created": [
+         "[MaxKey, MinKey]"
+        ]
+       },
+       "keysExamined": {
+        "$numberInt": "40"
+       },
+       "seeks": {
+        "$numberInt": "1"
+       },
+       "dupsTested": {
+        "$numberInt": "0"
+       },
+       "dupsDropped": {
+        "$numberInt": "0"
+       },
+       "peakTrackedMemBytes": {
+        "$numberInt": "0"
+       }
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769868"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "sku": "s1"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112653"
+   },
+   "keysExamined": {
+    "$numberInt": "1"
+   },
+   "docsExamined": {
+    "$numberInt": "1"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "1"
+   },
+   "queryShapeHash": "00B455DB7B4E83A339E83A95ADA7BA8D12EC7E5108A3553D0C4E7B93870B772B",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "9"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "346"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "103750"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "EXPRESS_IXSCAN { sku: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "52"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "EXPRESS_IXSCAN",
+    "keyPattern": "{ sku: 1 }",
+    "indexName": "sku_1",
+    "keysExamined": {
+     "$numberInt": "1"
+    },
+    "docsExamined": {
+     "$numberInt": "1"
+    },
+    "nReturned": {
+     "$numberInt": "1"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769867"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "status": "A"
+    },
+    "limit": {
+     "$numberLong": "10"
+    },
+    "sort": {
+     "created": {
+      "$numberInt": "-1"
+     }
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112652"
+   },
+   "keysExamined": {
+    "$numberInt": "40"
+   },
+   "docsExamined": {
+    "$numberInt": "40"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "10"
+   },
+   "planCacheShapeHash": "A780B54A",
+   "queryHash": "A780B54A",
+   "planCacheKey": "ADF95946",
+   "queryShapeHash": "3CF4A37CD608D75FE2C130F4C85BE4787C11F18D71FDC3D9CA8A0552A59E0EF1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "9"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "1495"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "418541"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { created: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "362"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "10"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "41"
+    },
+    "advanced": {
+     "$numberInt": "10"
+    },
+    "needTime": {
+     "$numberInt": "30"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "1"
+    },
+    "restoreState": {
+     "$numberInt": "1"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "10"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "filter": {
+      "status": {
+       "$eq": "A"
+      }
+     },
+     "nReturned": {
+      "$numberInt": "10"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "40"
+     },
+     "advanced": {
+      "$numberInt": "10"
+     },
+     "needTime": {
+      "$numberInt": "30"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "1"
+     },
+     "restoreState": {
+      "$numberInt": "1"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "nss": "shop.orders",
+     "docsExamined": {
+      "$numberInt": "40"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "40"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "40"
+      },
+      "advanced": {
+       "$numberInt": "40"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "1"
+      },
+      "restoreState": {
+       "$numberInt": "1"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "nss": "shop.orders",
+      "keyPattern": {
+       "created": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "created_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "created": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "backward",
+      "indexBounds": {
+       "created": [
+        "[MaxKey, MinKey]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "40"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      },
+      "peakTrackedMemBytes": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769866"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "sku": "s0"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112651"
+   },
+   "keysExamined": {
+    "$numberInt": "1"
+   },
+   "docsExamined": {
+    "$numberInt": "1"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "1"
+   },
+   "queryShapeHash": "00B455DB7B4E83A339E83A95ADA7BA8D12EC7E5108A3553D0C4E7B93870B772B",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "data": {
+     "bytesRead": {
+      "$numberLong": "14745"
+     },
+     "timeReadingMicros": {
+      "$numberLong": "13"
+     }
+    },
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "9"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "346"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "119458"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "EXPRESS_IXSCAN { sku: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "45"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "EXPRESS_IXSCAN",
+    "keyPattern": "{ sku: 1 }",
+    "indexName": "sku_1",
+    "keysExamined": {
+     "$numberInt": "1"
+    },
+    "docsExamined": {
+     "$numberInt": "1"
+    },
+    "nReturned": {
+     "$numberInt": "1"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769865"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "status": "A"
+    },
+    "limit": {
+     "$numberLong": "10"
+    },
+    "sort": {
+     "created": {
+      "$numberInt": "-1"
+     }
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112650"
+   },
+   "keysExamined": {
+    "$numberInt": "40"
+   },
+   "docsExamined": {
+    "$numberInt": "40"
+   },
+   "fromMultiPlanner": true,
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "10"
+   },
+   "planCacheShapeHash": "A780B54A",
+   "queryHash": "A780B54A",
+   "planCacheKey": "ADF95946",
+   "queryShapeHash": "3CF4A37CD608D75FE2C130F4C85BE4787C11F18D71FDC3D9CA8A0552A59E0EF1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "data": {
+     "bytesRead": {
+      "$numberLong": "183416"
+     },
+     "timeReadingMicros": {
+      "$numberLong": "48"
+     }
+    },
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "1495"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "934251"
+   },
+   "millis": {
+    "$numberInt": "0"
+   },
+   "planSummary": "IXSCAN { created: 1 }",
+   "planningTimeMicros": {
+    "$numberInt": "894"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": {
+     "$numberInt": "10"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "41"
+    },
+    "advanced": {
+     "$numberInt": "10"
+    },
+    "needTime": {
+     "$numberInt": "30"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "1"
+    },
+    "restoreState": {
+     "$numberInt": "1"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "limitAmount": {
+     "$numberInt": "10"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "filter": {
+      "status": {
+       "$eq": "A"
+      }
+     },
+     "nReturned": {
+      "$numberInt": "10"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "40"
+     },
+     "advanced": {
+      "$numberInt": "10"
+     },
+     "needTime": {
+      "$numberInt": "30"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "1"
+     },
+     "restoreState": {
+      "$numberInt": "1"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "nss": "shop.orders",
+     "docsExamined": {
+      "$numberInt": "40"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "40"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "40"
+      },
+      "advanced": {
+       "$numberInt": "40"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "1"
+      },
+      "restoreState": {
+       "$numberInt": "1"
+      },
+      "isEOF": {
+       "$numberInt": "0"
+      },
+      "nss": "shop.orders",
+      "keyPattern": {
+       "created": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "created_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "created": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "backward",
+      "indexBounds": {
+       "created": [
+        "[MaxKey, MinKey]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "40"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      },
+      "peakTrackedMemBytes": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769864"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "cust": "c4"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112649"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "20000"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "20"
+   },
+   "planCacheShapeHash": "E46F9543",
+   "queryHash": "E46F9543",
+   "planCacheKey": "DAC1F2BA",
+   "queryShapeHash": "385242D30A2F1FA510B470B75F0A95784B12CA27271E6617027FC768F34065A1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "6"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "2722"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "4939915"
+   },
+   "millis": {
+    "$numberInt": "4"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "40"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "cust": {
+      "$eq": "c4"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "20"
+    },
+    "needTime": {
+     "$numberInt": "19980"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "20000"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769863"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "cust": "c3"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112648"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "20000"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "20"
+   },
+   "planCacheShapeHash": "E46F9543",
+   "queryHash": "E46F9543",
+   "planCacheKey": "DAC1F2BA",
+   "queryShapeHash": "385242D30A2F1FA510B470B75F0A95784B12CA27271E6617027FC768F34065A1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "2722"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "4892624"
+   },
+   "millis": {
+    "$numberInt": "4"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "42"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "cust": {
+      "$eq": "c3"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "20"
+    },
+    "needTime": {
+     "$numberInt": "19980"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "20000"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769857"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "cust": "c2"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112647"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "20000"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "20"
+   },
+   "planCacheShapeHash": "E46F9543",
+   "queryHash": "E46F9543",
+   "planCacheKey": "DAC1F2BA",
+   "queryShapeHash": "385242D30A2F1FA510B470B75F0A95784B12CA27271E6617027FC768F34065A1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "2722"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "4915622"
+   },
+   "millis": {
+    "$numberInt": "4"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "34"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "cust": {
+      "$eq": "c2"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "3"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "20"
+    },
+    "needTime": {
+     "$numberInt": "19980"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "20000"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769852"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "cust": "c1"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112646"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "20000"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "20"
+   },
+   "planCacheShapeHash": "E46F9543",
+   "queryHash": "E46F9543",
+   "planCacheKey": "DAC1F2BA",
+   "queryShapeHash": "385242D30A2F1FA510B470B75F0A95784B12CA27271E6617027FC768F34065A1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "8"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "2722"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "4934333"
+   },
+   "millis": {
+    "$numberInt": "4"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "41"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "cust": {
+      "$eq": "c1"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "20"
+    },
+    "needTime": {
+     "$numberInt": "19980"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "20000"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769846"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  },
+  {
+   "op": "query",
+   "ns": "shop.orders",
+   "isFromPriorityPortConnection": false,
+   "command": {
+    "find": "orders",
+    "filter": {
+     "cust": "c0"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 5
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "opid": {
+    "$numberInt": "112645"
+   },
+   "keysExamined": {
+    "$numberInt": "0"
+   },
+   "docsExamined": {
+    "$numberInt": "20000"
+   },
+   "nBatches": {
+    "$numberInt": "1"
+   },
+   "cursorExhausted": true,
+   "numYield": {
+    "$numberInt": "0"
+   },
+   "nreturned": {
+    "$numberInt": "20"
+   },
+   "planCacheShapeHash": "E46F9543",
+   "queryHash": "E46F9543",
+   "planCacheKey": "DAC1F2BA",
+   "queryShapeHash": "385242D30A2F1FA510B470B75F0A95784B12CA27271E6617027FC768F34065A1",
+   "queryFramework": "classic",
+   "locks": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "2"
+      }
+     }
+    }
+   },
+   "flowControl": {},
+   "readConcern": {
+    "level": "local",
+    "provenance": "implicitDefault"
+   },
+   "storage": {
+    "timeWaitingMicros": {
+     "storageEngineMicros": {
+      "$numberLong": "5"
+     }
+    }
+   },
+   "responseLength": {
+    "$numberInt": "2722"
+   },
+   "protocol": "op_msg",
+   "cpuNanos": {
+    "$numberInt": "4956793"
+   },
+   "millis": {
+    "$numberInt": "4"
+   },
+   "planSummary": "COLLSCAN",
+   "planningTimeMicros": {
+    "$numberInt": "71"
+   },
+   "execStats": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "cust": {
+      "$eq": "c0"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "4"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "20"
+    },
+    "needTime": {
+     "$numberInt": "19980"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "20000"
+    }
+   },
+   "ts": {
+    "$date": {
+     "$numberLong": "1794163769841"
+    }
+   },
+   "client": "10.88.0.3",
+   "allUsers": [],
+   "user": ""
+  }
+ ],
+ "collections": [
+  {
+   "name": "orders",
+   "indexes": [
+    {
+     "v": {
+      "$numberInt": "2"
+     },
+     "key": {
+      "_id": {
+       "$numberInt": "1"
+      }
+     },
+     "name": "_id_"
+    },
+    {
+     "v": {
+      "$numberInt": "2"
+     },
+     "key": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "name": "status_1"
+    },
+    {
+     "v": {
+      "$numberInt": "2"
+     },
+     "key": {
+      "status": {
+       "$numberInt": "1"
+      },
+      "qty": {
+       "$numberInt": "1"
+      }
+     },
+     "name": "status_1_qty_1"
+    },
+    {
+     "v": {
+      "$numberInt": "2"
+     },
+     "key": {
+      "tags": {
+       "$numberInt": "1"
+      }
+     },
+     "name": "tags_1"
+    },
+    {
+     "v": {
+      "$numberInt": "2"
+     },
+     "key": {
+      "sku": {
+       "$numberInt": "1"
+      }
+     },
+     "name": "sku_1",
+     "unique": true
+    },
+    {
+     "v": {
+      "$numberInt": "2"
+     },
+     "key": {
+      "created": {
+       "$numberInt": "1"
+      }
+     },
+     "name": "created_1"
+    }
+   ],
+   "indexStats": [
+    {
+     "name": "_id_",
+     "key": {
+      "_id": {
+       "$numberInt": "1"
+      }
+     },
+     "host": "def1ad92f59d:27017",
+     "accesses": {
+      "ops": {
+       "$numberLong": "0"
+      },
+      "since": {
+       "$date": {
+        "$numberLong": "1794162650255"
+       }
+      }
+     },
+     "spec": {
+      "v": {
+       "$numberInt": "2"
+      },
+      "key": {
+       "_id": {
+        "$numberInt": "1"
+       }
+      },
+      "name": "_id_"
+     }
+    },
+    {
+     "name": "sku_1",
+     "key": {
+      "sku": {
+       "$numberInt": "1"
+      }
+     },
+     "host": "def1ad92f59d:27017",
+     "accesses": {
+      "ops": {
+       "$numberLong": "3"
+      },
+      "since": {
+       "$date": {
+        "$numberLong": "1794162650793"
+       }
+      }
+     },
+     "spec": {
+      "v": {
+       "$numberInt": "2"
+      },
+      "unique": true,
+      "key": {
+       "sku": {
+        "$numberInt": "1"
+       }
+      },
+      "name": "sku_1"
+     }
+    },
+    {
+     "name": "created_1",
+     "key": {
+      "created": {
+       "$numberInt": "1"
+      }
+     },
+     "host": "def1ad92f59d:27017",
+     "accesses": {
+      "ops": {
+       "$numberLong": "3"
+      },
+      "since": {
+       "$date": {
+        "$numberLong": "1794163769774"
+       }
+      }
+     },
+     "spec": {
+      "v": {
+       "$numberInt": "2"
+      },
+      "key": {
+       "created": {
+        "$numberInt": "1"
+       }
+      },
+      "name": "created_1"
+     }
+    },
+    {
+     "name": "tags_1",
+     "key": {
+      "tags": {
+       "$numberInt": "1"
+      }
+     },
+     "host": "def1ad92f59d:27017",
+     "accesses": {
+      "ops": {
+       "$numberLong": "0"
+      },
+      "since": {
+       "$date": {
+        "$numberLong": "1794162650658"
+       }
+      }
+     },
+     "spec": {
+      "v": {
+       "$numberInt": "2"
+      },
+      "key": {
+       "tags": {
+        "$numberInt": "1"
+       }
+      },
+      "name": "tags_1"
+     }
+    },
+    {
+     "name": "status_1",
+     "key": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "host": "def1ad92f59d:27017",
+     "accesses": {
+      "ops": {
+       "$numberLong": "7"
+      },
+      "since": {
+       "$date": {
+        "$numberLong": "1794162650402"
+       }
+      }
+     },
+     "spec": {
+      "v": {
+       "$numberInt": "2"
+      },
+      "key": {
+       "status": {
+        "$numberInt": "1"
+       }
+      },
+      "name": "status_1"
+     }
+    },
+    {
+     "name": "status_1_qty_1",
+     "key": {
+      "status": {
+       "$numberInt": "1"
+      },
+      "qty": {
+       "$numberInt": "1"
+      }
+     },
+     "host": "def1ad92f59d:27017",
+     "accesses": {
+      "ops": {
+       "$numberLong": "1"
+      },
+      "since": {
+       "$date": {
+        "$numberLong": "1794162650535"
+       }
+      }
+     },
+     "spec": {
+      "v": {
+       "$numberInt": "2"
+      },
+      "key": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "name": "status_1_qty_1"
+     }
+    }
+   ],
+   "indexSizes": {
+    "_id_": {
+     "$numberInt": "729088"
+    },
+    "status_1": {
+     "$numberInt": "122880"
+    },
+    "status_1_qty_1": {
+     "$numberInt": "180224"
+    },
+    "tags_1": {
+     "$numberInt": "225280"
+    },
+    "sku_1": {
+     "$numberInt": "225280"
+    },
+    "created_1": {
+     "$numberInt": "217088"
+    }
+   }
+  },
+  {
+   "name": "users",
+   "indexes": [
+    {
+     "v": {
+      "$numberInt": "2"
+     },
+     "key": {
+      "_id": {
+       "$numberInt": "1"
+      }
+     },
+     "name": "_id_"
+    }
+   ],
+   "indexStats": [
+    {
+     "name": "_id_",
+     "key": {
+      "_id": {
+       "$numberInt": "1"
+      }
+     },
+     "host": "def1ad92f59d:27017",
+     "accesses": {
+      "ops": {
+       "$numberLong": "0"
+      },
+      "since": {
+       "$date": {
+        "$numberLong": "1794162650913"
+       }
+      }
+     },
+     "spec": {
+      "v": {
+       "$numberInt": "2"
+      },
+      "key": {
+       "_id": {
+        "$numberInt": "1"
+       }
+      },
+      "name": "_id_"
+     }
+    }
+   ],
+   "indexSizes": {
+    "_id_": {
+     "$numberInt": "36864"
+    }
+   }
+  }
+ ],
+ "top": {
+  "shop.orders": {
+   "total": {
+    "time": {
+     "$numberInt": "31816589"
+    },
+    "count": {
+     "$numberInt": "70"
+    }
+   },
+   "readLock": {
+    "time": {
+     "$numberInt": "31213072"
+    },
+    "count": {
+     "$numberInt": "62"
+    }
+   },
+   "writeLock": {
+    "time": {
+     "$numberInt": "603517"
+    },
+    "count": {
+     "$numberInt": "8"
+    }
+   },
+   "queries": {
+    "time": {
+     "$numberInt": "27349"
+    },
+    "count": {
+     "$numberInt": "16"
+    }
+   },
+   "getmore": {
+    "time": {
+     "$numberInt": "492"
+    },
+    "count": {
+     "$numberInt": "6"
+    }
+   },
+   "insert": {
+    "time": {
+     "$numberInt": "48483"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "update": {
+    "time": {
+     "$numberInt": "6101"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "remove": {
+    "time": {
+     "$numberInt": "5708"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "commands": {
+    "time": {
+     "$numberInt": "31728456"
+    },
+    "count": {
+     "$numberInt": "45"
+    }
+   }
+  },
+  "shop.system.js": {
+   "total": {
+    "time": {
+     "$numberInt": "188"
+    },
+    "count": {
+     "$numberInt": "4"
+    }
+   },
+   "readLock": {
+    "time": {
+     "$numberInt": "188"
+    },
+    "count": {
+     "$numberInt": "4"
+    }
+   },
+   "writeLock": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "queries": {
+    "time": {
+     "$numberInt": "188"
+    },
+    "count": {
+     "$numberInt": "4"
+    }
+   },
+   "getmore": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "insert": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "update": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "remove": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "commands": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   }
+  },
+  "shop.system.profile": {
+   "total": {
+    "time": {
+     "$numberInt": "183"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "readLock": {
+    "time": {
+     "$numberInt": "183"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "writeLock": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "queries": {
+    "time": {
+     "$numberInt": "183"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "getmore": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "insert": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "update": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "remove": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "commands": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   }
+  },
+  "shop.tmp_out": {
+   "total": {
+    "time": {
+     "$numberInt": "269"
+    },
+    "count": {
+     "$numberInt": "2"
+    }
+   },
+   "readLock": {
+    "time": {
+     "$numberInt": "269"
+    },
+    "count": {
+     "$numberInt": "2"
+    }
+   },
+   "writeLock": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "queries": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "getmore": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "insert": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "update": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "remove": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "commands": {
+    "time": {
+     "$numberInt": "269"
+    },
+    "count": {
+     "$numberInt": "2"
+    }
+   }
+  },
+  "shop.users": {
+   "total": {
+    "time": {
+     "$numberInt": "5020955"
+    },
+    "count": {
+     "$numberInt": "12"
+    }
+   },
+   "readLock": {
+    "time": {
+     "$numberInt": "5016331"
+    },
+    "count": {
+     "$numberInt": "11"
+    }
+   },
+   "writeLock": {
+    "time": {
+     "$numberInt": "4624"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "queries": {
+    "time": {
+     "$numberInt": "5014300"
+    },
+    "count": {
+     "$numberInt": "4"
+    }
+   },
+   "getmore": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "insert": {
+    "time": {
+     "$numberInt": "4624"
+    },
+    "count": {
+     "$numberInt": "1"
+    }
+   },
+   "update": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "remove": {
+    "time": {
+     "$numberInt": "0"
+    },
+    "count": {
+     "$numberInt": "0"
+    }
+   },
+   "commands": {
+    "time": {
+     "$numberInt": "2031"
+    },
+    "count": {
+     "$numberInt": "7"
+    }
+   }
+  }
+ },
+ "inprog": [
+  {
+   "type": "op",
+   "host": "def1ad92f59d:27017",
+   "desc": "conn50",
+   "connectionId": {
+    "$numberInt": "50"
+   },
+   "client": "10.88.0.3:57530",
+   "clientMetadata": {
+    "driver": {
+     "name": "mongo-go-driver",
+     "version": "1.17.9"
+    },
+    "os": {
+     "type": "darwin",
+     "architecture": "arm64"
+    },
+    "platform": "go1.27.1"
+   },
+   "active": true,
+   "currentOpTime": "2026-11-08T18:49:31.401+00:00",
+   "isFromUserConnection": true,
+   "isFromPriorityPortConnection": false,
+   "threaded": true,
+   "opid": {
+    "$numberInt": "112671"
+   },
+   "lsid": {
+    "id": {
+     "$binary": {
+      "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+      "subType": "04"
+     }
+    },
+    "uid": {
+     "$binary": {
+      "base64": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+      "subType": "00"
+     }
+    }
+   },
+   "secs_running": {
+    "$numberLong": "1"
+   },
+   "microsecs_running": {
+    "$numberLong": "1504040"
+   },
+   "op": "query",
+   "ns": "shop.users",
+   "redacted": false,
+   "command": {
+    "find": "users",
+    "filter": {
+     "$where": "sleep(2500); return true"
+    },
+    "lsid": {
+     "id": {
+      "$binary": {
+       "base64": "G+zCnOr0Qmy56Te2VkHxgA==",
+       "subType": "04"
+      }
+     }
+    },
+    "$clusterTime": {
+     "clusterTime": {
+      "$timestamp": {
+       "t": 1794163769,
+       "i": 25
+      }
+     },
+     "signature": {
+      "hash": {
+       "$binary": {
+        "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "subType": "00"
+       }
+      },
+      "keyId": {
+       "$numberLong": "0"
+      }
+     }
+    },
+    "$db": "shop",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "queryFramework": "classic",
+   "planSummary": "COLLSCAN",
+   "numYields": {
+    "$numberInt": "0"
+   },
+   "numInterruptChecks": {
+    "$numberLong": "14"
+   },
+   "priorityLowered": false,
+   "wasMarkedNonDeprioritizable": false,
+   "totalTimeQueuedMicros": {
+    "$numberLong": "0"
+   },
+   "totalAdmissions": {
+    "$numberInt": "1"
+   },
+   "wasLoadShed": false,
+   "wasDeprioritized": false,
+   "queues": {
+    "ingress": {
+     "admissions": {
+      "$numberInt": "1"
+     },
+     "totalTimeQueuedMicros": {
+      "$numberLong": "0"
+     },
+     "isHoldingTicket": true
+    },
+    "execution": {
+     "admissions": {
+      "$numberInt": "1"
+     },
+     "totalTimeQueuedMicros": {
+      "$numberLong": "0"
+     },
+     "isHoldingTicket": true
+    }
+   },
+   "currentQueue": null,
+   "queryShapeHash": "E2DCC99444DB18C41A56EF87805DF0736F9C5561DD26AE3F070A9749FFC7A8A9",
+   "locks": {
+    "Global": "r"
+   },
+   "waitingForLock": false,
+   "lockStats": {
+    "Global": {
+     "acquireCount": {
+      "r": {
+       "$numberLong": "1"
+      }
+     }
+    }
+   },
+   "waitingForFlowControl": false,
+   "flowControlStats": {}
+  },
+  {
+   "type": "op",
+   "host": "def1ad92f59d:27017",
+   "desc": "conn48",
+   "connectionId": {
+    "$numberInt": "48"
+   },
+   "client": "10.88.0.3:57514",
+   "clientMetadata": {
+    "driver": {
+     "name": "mongo-go-driver",
+     "version": "1.17.9"
+    },
+    "os": {
+     "type": "darwin",
+     "architecture": "arm64"
+    },
+    "platform": "go1.27.1"
+   },
+   "active": true,
+   "currentOpTime": "2026-11-08T18:49:31.401+00:00",
+   "isFromUserConnection": true,
+   "isFromPriorityPortConnection": false,
+   "threaded": true,
+   "opid": {
+    "$numberInt": "111617"
+   },
+   "secs_running": {
+    "$numberLong": "1"
+   },
+   "microsecs_running": {
+    "$numberLong": "1639279"
+   },
+   "op": "command",
+   "ns": "admin.$cmd",
+   "redacted": false,
+   "command": {
+    "hello": {
+     "$numberInt": "1"
+    },
+    "helloOk": true,
+    "topologyVersion": {
+     "processId": {
+      "$oid": "6af0bfc63a9008982bf4bd6f"
+     },
+     "counter": {
+      "$numberLong": "6"
+     }
+    },
+    "maxAwaitTimeMS": {
+     "$numberLong": "10000"
+    },
+    "$db": "admin",
+    "$readPreference": {
+     "mode": "primaryPreferred"
+    }
+   },
+   "numYields": {
+    "$numberInt": "0"
+   },
+   "numInterruptChecks": {
+    "$numberLong": "2"
+   },
+   "priorityLowered": false,
+   "wasMarkedNonDeprioritizable": false,
+   "queues": {
+    "ingress": {
+     "admissions": {
+      "$numberInt": "1"
+     },
+     "totalTimeQueuedMicros": {
+      "$numberLong": "0"
+     },
+     "isHoldingTicket": false
+    },
+    "execution": {
+     "admissions": {
+      "$numberInt": "0"
+     },
+     "totalTimeQueuedMicros": {
+      "$numberLong": "0"
+     },
+     "isHoldingTicket": false
+    }
+   },
+   "currentQueue": null,
+   "locks": {},
+   "waitingForLock": false,
+   "lockStats": {},
+   "waitingForFlowControl": false,
+   "flowControlStats": {}
+  }
+ ]
+}

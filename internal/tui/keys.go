@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"tango/internal/documents"
+	"tango/internal/query"
 	"tango/internal/state"
 	"tango/internal/tui/prompt"
 )
@@ -87,6 +88,8 @@ func (m *Model) key(key tea.KeyPressMsg) tea.Cmd {
 	case "r":
 		if s.View == "stats" && s.Focus == "content" {
 			documents.RefreshStats(true)
+		} else if s.View == "insights" && s.Focus == "content" {
+			documents.RefreshInsights()
 		} else {
 			documents.Refresh()
 		}
@@ -168,6 +171,13 @@ func (m *Model) key(key tea.KeyPressMsg) tea.Cmd {
 		if m.stats.Handles(key) {
 			return m.stats.Update(key)
 		}
+	case "insights":
+		if m.insights.Handles(key) {
+			return m.insights.Update(key)
+		}
+		if k == "E" {
+			return m.openPrompt(prompt.Command, "explain Q")
+		}
 	default:
 		if m.table.Handles(key) {
 			cmd := m.table.Update(key)
@@ -188,6 +198,8 @@ func (m *Model) key(key tea.KeyPressMsg) tea.Cmd {
 			documents.DeleteDocumentConfirm()
 		case "e":
 			documents.EditDocument()
+		case "E":
+			query.ExecuteQuery(":explain")
 		case "x":
 			documents.ExportJSON()
 		case "C":
@@ -225,7 +237,7 @@ func (m *Model) back() {
 	switch s.View {
 	case "tree", "detail":
 		documents.CollapseDocument()
-	case "indexes", "stats":
+	case "indexes", "stats", "insights":
 		s.View, s.Focus = "list", "content"
 	default:
 		s.Focus = "sidebar"

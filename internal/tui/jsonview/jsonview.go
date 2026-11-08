@@ -392,6 +392,18 @@ func tokenStyle(t *theme.Theme, kind mjson.Kind) lipgloss.Style {
 		return t.JSONHelper
 	case mjson.Error:
 		return t.JSONError
+	case mjson.Heading:
+		return t.AccentBold
+	case mjson.Muted:
+		return t.Muted
+	case mjson.Good:
+		return t.OK
+	case mjson.Warn:
+		return t.Warn
+	case mjson.Bad:
+		return t.Err
+	case mjson.Accent:
+		return t.Accent
 	default:
 		return t.Text
 	}

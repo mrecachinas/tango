@@ -678,6 +678,78 @@ func TestEndToEnd(t *testing.T) {
 		e.key("esc", 0)
 	})
 
+	detailText := func() string {
+		var b strings.Builder
+		e.onUI(func() {
+			for _, tok := range s.DetailTokens {
+				b.WriteString(tok.Text)
+			}
+		})
+		return b.String()
+	}
+
+	t.Run("explain shows the plan and a missing index", func(t *testing.T) {
+		e.openColl("big")
+		e.query(`db.big.find({i: {$gte: 19990}}).sort({i: -1}).explain()`)
+		e.waitFor("explain", func() bool { return s.View == "detail" && strings.HasPrefix(s.DetailTitle, "Explain") })
+		text := detailText()
+		for _, want := range []string{"COLLSCAN", "20,000", `db.big.createIndex({"i": -1})`} {
+			if !strings.Contains(text, want) {
+				t.Errorf("explain report lacks %q:\n%s", want, text)
+			}
+		}
+		e.key("esc", 0)
+
+		e.query(`{i: 7}`)
+		e.key("rune", 'E')
+		e.waitFor("explain current", func() bool { return s.View == "detail" && strings.HasPrefix(s.DetailTitle, "Explain") })
+		if text := detailText(); !strings.Contains(text, "COLLSCAN") || !strings.Contains(text, "executionStats") {
+			t.Errorf("E report:\n%s", text)
+		}
+		e.key("esc", 0)
+		e.query("")
+	})
+
+	t.Run("insights finds slow shapes and recommends an index", func(t *testing.T) {
+		ctx := context.Background()
+		if err := e.db.RunCommand(ctx, bson.D{{Key: "profile", Value: 2}}).Err(); err != nil {
+			t.Skip("profiler unavailable:", err)
+		}
+		for i := 0; i < 3; i++ {
+			if err := e.db.Collection("big").FindOne(ctx, bson.D{{Key: "i", Value: 19999 - i}}).Err(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_ = e.db.RunCommand(ctx, bson.D{{Key: "profile", Value: 0}}).Err()
+		e.query(":insights")
+		e.waitFor("insights", func() bool { return s.View == "insights" && len(s.InsightsSections) > 0 })
+		screen := e.screen()
+		for _, want := range []string{"Insights", "Recommendations", "Add an index on big", `db.big.createIndex({"i": 1})`, "Q1", "COLLSCAN"} {
+			if !strings.Contains(screen, want) {
+				t.Errorf("insights screen lacks %q:\n%s", want, screen)
+			}
+		}
+		var id string
+		e.onUI(func() {
+			for k, q := range s.InsightsQueries {
+				if q.NS.Coll == "big" {
+					id = k
+				}
+			}
+		})
+		if id == "" {
+			t.Fatal("no insight query for big")
+		}
+		e.query(":explain " + id)
+		e.waitFor("explain "+id, func() bool { return s.View == "detail" && s.DetailBackPage == "insights" })
+		if text := detailText(); !strings.Contains(text, "COLLSCAN") {
+			t.Errorf(":explain %s:\n%s", id, text)
+		}
+		e.key("esc", 0)
+		e.waitFor("back to insights", func() bool { return s.View == "insights" })
+		e.key("esc", 0)
+	})
+
 	t.Run("filter mode lets global keys be typed", func(t *testing.T) {
 		e.onUI(func() { s.Focus = "sidebar" })
 		e.typeText("/qW")

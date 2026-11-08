@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"tango/internal/state"
@@ -55,6 +56,16 @@ func (m *statsModel) rebuild() {
 			}
 			heading := t.Text.Bold(true).Render(title) + " " + t.Muted.Render(lineText(section.Note))
 			m.lines = append(m.lines, "", heading)
+			if len(section.Lines) > 0 {
+				for _, line := range section.Lines {
+					indent := strings.Repeat(" ", line.Indent)
+					wrapped := ansi.Wrap(lineText(line.Text), max(1, m.width-line.Indent), "")
+					for _, w := range strings.Split(wrapped, "\n") {
+						m.lines = append(m.lines, indent+toneStyle(t, line.Tone).Render(w))
+					}
+				}
+				continue
+			}
 			if section.Empty != "" {
 				for _, line := range strings.Split(ansi.Wrap(lineText(section.Empty), max(1, m.width), ""), "\n") {
 					m.lines = append(m.lines, t.Faint.Render(line))
@@ -73,6 +84,24 @@ func (m *statsModel) rebuild() {
 		}
 	}
 	m.clamp()
+}
+
+func toneStyle(t *theme.Theme, tone string) lipgloss.Style {
+	switch tone {
+	case "good":
+		return t.OK
+	case "info":
+		return t.Info
+	case "warn":
+		return t.Warn
+	case "bad":
+		return t.Err
+	case "muted":
+		return t.Muted
+	case "accent":
+		return t.Accent
+	}
+	return t.Text
 }
 
 func statsWidths(columns []state.StatsColumn, width int) []int {

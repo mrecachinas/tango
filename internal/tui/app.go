@@ -30,7 +30,7 @@ type Model struct {
 	tree                                              *jsontree.Model
 	json                                              *jsonview.Model
 	indexes                                           *doctable.Model
-	stats                                             *statsModel
+	stats, insights                                   *statsModel
 	prompt                                            *prompt.Model
 	palette                                           *palette.Model
 	help                                              *overlay.Help
@@ -44,6 +44,7 @@ type Model struct {
 	expandedHeader                                    bool
 	sidebarOverride                                   *bool
 	docsRev, detailRev, listRev, statsRev, sidebarRev uint64
+	insightsRev                                       uint64
 	pathDB, pathColl                                  string
 	selectedDB, selectedColl                          string
 	initialized                                       bool
@@ -75,7 +76,7 @@ func New() *Model {
 	}
 	m := &Model{
 		sidebar: newSidebar(), table: doctable.New(), tree: jsontree.New(),
-		json: jsonview.New(), indexes: doctable.New(), stats: newStats(),
+		json: jsonview.New(), indexes: doctable.New(), stats: newStats(), insights: newStats(),
 		prompt:  prompt.New(prompt.Query, "/ ", "{field: value} or db.collection.find(…)"),
 		palette: palette.New(nil), help: overlay.NewHelp(helpSections()),
 		spinner: chrome.NewSpinner(), width: 80, height: 24, Exec: tea.ExecProcess,
@@ -263,6 +264,10 @@ func (m *Model) sync() tea.Cmd {
 	if !m.initialized || m.statsRev != s.StatsRevision {
 		m.stats.SetData(s.StatsUpdated, s.StatsSections, s.StatsText)
 		m.statsRev = s.StatsRevision
+	}
+	if !m.initialized || m.insightsRev != s.InsightsRevision {
+		m.insights.SetData(s.InsightsUpdated, s.InsightsSections, s.InsightsText)
+		m.insightsRev = s.InsightsRevision
 	}
 	m.initialized = true
 	var cmd tea.Cmd

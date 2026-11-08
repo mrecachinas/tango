@@ -15,6 +15,8 @@ Built with Bubble Tea v2, Lip Gloss v2 and Bubbles v2.
 - MongoDB shell-style queries, autocomplete/history, sorting and JSON/CSV exports.
 - Fuzzy command palette, filterable help and guarded edit/insert/delete/drop actions.
 - Live watch and server stats: active operations, top collections and slow queries.
+- Query analysis: `:explain` shows which index a query uses and what index would help;
+  `:insights` ranks slow query shapes, hot collections, and missing, unused or redundant indexes.
 - One-line metrics header with sparklines (`M` expands it), plus a mode pill and contextual hints in the footer.
 - Responsive sidebar (`W` toggles it), configurable skins and `NO_COLOR` support.
 
@@ -87,6 +89,58 @@ Shell helpers such as `ObjectId("…")`, `ISODate("…")`, `NumberLong(…)`, `N
 Documents are shown, copied and edited in the same shell syntax, so editing preserves BSON types
 (int32/int64/double, dates, ObjectIds, …) and field order exactly.
 
+## Query analysis
+
+### Explain
+
+`:explain` (or `E` in the document list) explains the query on screen: the current
+filter, sort, projection and page, or the last shell query. It also accepts a query or a
+filter, and an optional verbosity (`queryPlanner`, `executionStats` (default) or
+`allPlansExecution`):
+
+```text
+:explain db.orders.find({cust: "c4"}).sort({created: -1})
+:explain queryPlanner {status: "open"}
+db.orders.find({cust: "c4"}).explain()            # shell forms work in the query bar too
+db.orders.explain("allPlansExecution").aggregate([{$match: {cust: "c4"}}])
+```
+
+`find`, `findOne`, `count*`, `distinct`, `aggregate`, `update*`, `replaceOne` and
+`delete*` can be explained. Writes are explained, not executed. The report leads with
+findings: collection scans, in-memory sorts and disk spills, unbounded index scans,
+filters applied after fetching, poor examined:returned ratios, `$lookup` join strategies,
+and runs that hit the time limit. It then summarises the winning plan. When
+an index would help, it suggests one ordered by the ESR rule (equality, sort, range)
+and states whether an existing index already fits. The raw explain output follows.
+
+### Insights
+
+`:insights [db]` (`:advisor`) is a PlanetScale Insights-style overview of one database,
+built from the profiler, `$indexStats`, `$collStats`, `top` and `currentOp`:
+
+- **Recommendations:** indexes to add (with `createIndex` commands), slow or
+  JavaScript-heavy queries, long-running operations to `:killop`, and unused or redundant
+  indexes to `hideIndex`.
+- **Slow query shapes:** profiled operations grouped by normalised shape (`Q1`, `Q2`, …)
+  and ranked by total time. `:explain Q2`, or `E` in this view, re-explains a shape.
+- **Hot collections, index usage and running operations.**
+
+```mermaid
+flowchart LR
+  P[system.profile] --> S[group by query shape]
+  S --> R[rank by total time]
+  R --> A{inefficient?}
+  A -->|yes| X[suggest ESR index] --> C{does an existing index fit?}
+  C -->|no| Add[recommend createIndex]
+  C -->|yes| Why[explain why it was not used]
+  I["$indexStats + listIndexes"] --> U[unused / redundant indexes]
+  O[currentOp] --> K[long-running ops → :killop]
+```
+
+Query shapes need the profiler. If it is off, insights suggests
+`db.setProfilingLevel(1, {slowms: 50})`. Index usage counters are per node and reset on
+restart, so unused-index advice suggests hiding the index before dropping it.
+
 ## Keybindings
 
 Shortcuts are case-sensitive and apply outside inputs/overlays. Inputs capture
@@ -127,6 +181,7 @@ printable shortcut keys; `Ctrl+c` always quits.
 | `d` (list) | Delete selected documents or cursor document (y/N) |
 | `e` / `i` (list or detail) | Edit / insert via `$VISUAL`, `$EDITOR` or `vi` |
 | `x` / `C` (list) | Export selection or current page as JSON / CSV |
+| `E` (list) | Explain the current query or page |
 | `t` (detail) | Toggle JSON / tree |
 | `c` (detail) | Copy document to clipboard |
 | `/` (detail) | Search JSON; from tree, switches to JSON first |
@@ -175,6 +230,8 @@ Choices needing arguments open a command prompt.
 | `:colls` (`:collections`) | Focus sidebar for current database |
 | `:indexes` (`:idx`) | List indexes of current collection |
 | `:stats` (`:profile`) | Show server stats |
+| `:explain [verbosity] [query\|{filter}\|Qn]` | Explain the current page, a query, a filter or an insights shape |
+| `:insights [db]` (`:advisor`) | Slow query shapes, hot collections and index recommendations |
 | `:sort field -other` or `:sort field -1` | Sort ascending/descending; bare `:sort` clears sort |
 | `:limit n` | Set page size (1–10,000); bare `:limit` shows current size |
 | `:export json\|csv [all] [path]` | Export selection/page, or stream all matching documents with `all` |

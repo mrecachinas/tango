@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -114,6 +115,15 @@ func runShellQuery(query string) {
 	q, err := parseShellQuery(query)
 	if err != nil {
 		state.ShowError(err.Error())
+		return
+	}
+	if inner, verbosity, ok, err := splitExplain(q); ok {
+		if err == nil {
+			err = explainShell(inner, verbosity, query)
+		}
+		if err != nil {
+			state.ShowError(err.Error())
+		}
 		return
 	}
 	if err := runParsed(q); err != nil {
@@ -433,7 +443,7 @@ func rawSuggestions(currentText string) []string {
 		c := e.Name
 		if strings.HasPrefix(rest, c+".") {
 			partial := rest[len(c)+1:]
-			for _, m := range []string{"find(", "findOne(", "countDocuments(", "estimatedDocumentCount()", "aggregate([", "distinct("} {
+			for _, m := range []string{"find(", "findOne(", "countDocuments(", "estimatedDocumentCount()", "aggregate([", "distinct(", "explain()."} {
 				if strings.HasPrefix(m, partial) {
 					suggestions = append(suggestions, "db."+c+"."+m)
 				}
@@ -478,6 +488,21 @@ func executeCommand(cmd string) {
 
 	case "stats", "profile":
 		documents.ShowStats()
+
+	case "explain":
+		_, rest, _ := strings.Cut(strings.TrimSpace(cmd), " ")
+		runExplainCommand(rest)
+
+	case "insights", "advisor":
+		db := s.CurrentDB
+		if len(args) > 0 {
+			db = args[0]
+		}
+		if db == "" {
+			state.ShowError("Usage: :insights <database>  (or select a database first)")
+			return
+		}
+		documents.ShowInsights(db)
 
 	case "killop":
 		if len(args) != 1 {
@@ -611,7 +636,7 @@ func getCommandSuggestions(partial string) []string {
 	lower := strings.ToLower(partial)
 
 	commands := []string{
-		":indexes", ":idx", ":stats", ":sort ", ":limit ", ":killop ",
+		":indexes", ":idx", ":stats", ":explain", ":insights", ":advisor", ":sort ", ":limit ", ":killop ",
 		":export json", ":export csv", ":export json all", ":export csv all",
 		":use ", ":profile", ":refresh", ":refresh!", ":watch ",
 		":databases", ":dbs", ":database ", ":db ",
@@ -648,7 +673,15 @@ func getCommandSuggestions(partial string) []string {
 	for id := range s.StatsOps {
 		ops = append(ops, id)
 	}
-	complete([]string{"use ", "database ", "db "}, dbs)
+	var shapes []string
+	for id := range s.InsightsQueries {
+		shapes = append(shapes, id)
+	}
+	sort.Slice(shapes, func(i, j int) bool {
+		return len(shapes[i]) < len(shapes[j]) || len(shapes[i]) == len(shapes[j]) && shapes[i] < shapes[j]
+	})
+	complete([]string{"use ", "database ", "db ", "insights "}, dbs)
+	complete([]string{"explain "}, append([]string{"queryPlanner", "executionStats", "allPlansExecution"}, shapes...))
 	complete([]string{"collection ", "coll "}, colls)
 	complete([]string{"killop "}, ops)
 	return suggestions

@@ -86,6 +86,21 @@ type StatsSection struct {
 	Title, Note, Empty string
 	Columns            []StatsColumn
 	Rows               [][]string
+	Lines              []StatsLine // free-form text shown before Rows
+}
+
+// StatsLine is a line of prose in a section; Tone is "", "good", "info",
+// "warn", "bad" or "muted".
+type StatsLine struct {
+	Text, Tone string // tone: "", good, info, warn, bad, muted, accent
+	Indent     int
+}
+
+// InsightQuery is a query shape from :insights that :explain Qn can rerun.
+type InsightQuery struct {
+	NS      Namespace
+	Command bson.D
+	Shape   string
 }
 
 // AppState is the data store. Mutate it only on the UI goroutine; background
@@ -202,6 +217,15 @@ type AppState struct {
 	StatsSections   []StatsSection
 	RefreshInterval time.Duration // metrics/stats polling interval
 	StatsStopCh     chan struct{}
+
+	// Insights view
+	InsightsDB       string
+	InsightsUpdated  string
+	InsightsSections []StatsSection
+	InsightsQueries  map[string]InsightQuery // "Q1" -> query
+	InsightsText     string                  // loading/error text; sections render otherwise
+	InsightsRevision uint64
+	InsightsEpoch    int // drops stale fetches
 }
 
 // S is the global singleton application state.
