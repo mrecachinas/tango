@@ -133,8 +133,14 @@ func explainCommand(q shellQuery) (bson.D, error) {
 		if err := maxArgs(q, 1); err != nil {
 			return nil, err
 		}
+		// The executor counts with the driver's CountDocuments, which runs
+		// this aggregation rather than the count command.
 		filter, err := filterArg(0, q.Method+"() filter")
-		return bson.D{{Key: "count", Value: c}, {Key: "query", Value: filter}}, err
+		pipeline := bson.A{
+			bson.D{{Key: "$match", Value: filter}},
+			bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: 1}, {Key: "n", Value: bson.D{{Key: "$sum", Value: 1}}}}}},
+		}
+		return bson.D{{Key: "aggregate", Value: c}, {Key: "pipeline", Value: pipeline}, {Key: "cursor", Value: bson.D{}}}, err
 	case "estimatedDocumentCount":
 		return bson.D{{Key: "count", Value: c}}, maxArgs(q, 0)
 	case "distinct":
@@ -234,7 +240,7 @@ func runExplainCommand(args string) {
 		}
 		var filter bson.D
 		if filter, err = parseFilter(args); err == nil {
-			err = explainBrowse(filter, s.CurrentSort, s.CurrentProjection, 0, 0, verbosity)
+			err = explainBrowse(filter, s.CurrentSort, s.CurrentProjection, verbosity)
 		}
 	case len(args) > 1 && (args[0] == 'Q' || args[0] == 'q'):
 		err = documents.ExplainInsightQuery(strings.ToUpper(args), verbosity)
@@ -263,33 +269,44 @@ func explainCurrent(verbosity string) error {
 	if s.CurrentColl == "" {
 		return fmt.Errorf("select a collection to explain its query, or pass one: :explain db.coll.find({...})")
 	}
-	limit := int64(state.PageSize)
-	offset := int64(s.CurrentPage) * limit
-	if s.QueryLimit > 0 {
-		limit = min(limit, max(s.QueryLimit-offset, 1))
+	spec, ok := documents.CurrentPageFind()
+	if !ok {
+		return fmt.Errorf("the current page is past the query's limit, so it runs no query")
 	}
-	return explainBrowse(s.CurrentFilter, s.CurrentSort, s.CurrentProjection, s.QuerySkip+offset, limit, verbosity)
+	return explainFind(spec, verbosity)
 }
 
-func explainBrowse(filter, sort, proj bson.D, skip, limit int64, verbosity string) error {
+func explainBrowse(filter, sort, proj bson.D, verbosity string) error {
+	return explainFind(documents.FindSpec{Filter: filter, Sort: sort, Projection: proj}, verbosity)
+}
+
+func explainFind(spec documents.FindSpec, verbosity string) error {
 	s := state.S
+	op, ok := advisor.OpFromCommand(spec.Command(s.CurrentColl))
+	if !ok {
+		return fmt.Errorf("can't explain this query")
+	}
+	filter := spec.Filter
 	if filter == nil {
 		filter = bson.D{}
 	}
 	q := shellQuery{Coll: s.CurrentColl, Method: "find", Args: bson.A{filter}}
-	if len(proj) > 0 {
-		q.Args = append(q.Args, proj)
+	if len(spec.Projection) > 0 {
+		q.Args = append(q.Args, spec.Projection)
 	}
-	if len(sort) > 0 {
-		q.Chain = append(q.Chain, call{Name: "sort", Args: bson.A{sort}})
+	for _, c := range []call{{Name: "sort", Args: bson.A{spec.Sort}}, {Name: "hint", Args: bson.A{spec.Hint}}, {Name: "min", Args: bson.A{spec.Min}}} {
+		if d := c.Args[0].(bson.D); len(d) > 0 {
+			q.Chain = append(q.Chain, c)
+		}
 	}
-	if skip > 0 {
-		q.Chain = append(q.Chain, call{Name: "skip", Args: bson.A{skip}})
+	if spec.Skip > 0 {
+		q.Chain = append(q.Chain, call{Name: "skip", Args: bson.A{spec.Skip}})
 	}
-	if limit > 0 {
-		q.Chain = append(q.Chain, call{Name: "limit", Args: bson.A{limit}})
+	if spec.Limit > 0 {
+		q.Chain = append(q.Chain, call{Name: "limit", Args: bson.A{spec.Limit}})
 	}
-	return explainShell(q, verbosity, shellText(q))
+	documents.Explain(s.CurrentDB, op, verbosity, shellText(q))
+	return nil
 }
 
 // shellText renders a find as the shell query a user would type.

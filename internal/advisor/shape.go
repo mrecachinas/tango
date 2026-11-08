@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // Op is a read or write described by a server command, reduced to what plan
@@ -162,7 +163,9 @@ func (op Op) ExplainCommand(verbosity string, maxTimeMS int64) bson.D {
 
 // Shape replaces literal values in a filter with "?" so queries that differ
 // only in their constants group together. Field names, operators and logical
-// structure are kept; fields are sorted so their order doesn't matter.
+// structure are kept; fields are sorted so their order doesn't matter. Regex
+// predicates keep a regex marker (see regexShape) so they never group with
+// equality on the same field.
 func Shape(filter bson.D) bson.D {
 	out := make(bson.D, 0, len(filter))
 	for _, e := range filter {
@@ -173,6 +176,8 @@ func Shape(filter bson.D) bson.D {
 				arr = append(arr, Shape(toD(sub)))
 			}
 			out = append(out, bson.E{Key: e.Key, Value: arr})
+		case e.Key == "$expr":
+			out = append(out, bson.E{Key: e.Key, Value: shapeExpr(e.Value)})
 		case strings.HasPrefix(e.Key, "$"):
 			out = append(out, bson.E{Key: e.Key, Value: "?"})
 		default:
@@ -186,6 +191,9 @@ func Shape(filter bson.D) bson.D {
 func isOps(d bson.D) bool { return len(d) > 0 && strings.HasPrefix(d[0].Key, "$") }
 
 func shapeValue(v interface{}) interface{} {
+	if re, ok := v.(primitive.Regex); ok {
+		return regexShape(re.Pattern, re.Options)
+	}
 	d := toD(v)
 	if !isOps(d) {
 		return "?"
@@ -196,6 +204,17 @@ func shapeValue(v interface{}) interface{} {
 		switch op.Key {
 		case "$not":
 			val = shapeValue(op.Value)
+		case "$regex":
+			switch re := op.Value.(type) {
+			case primitive.Regex:
+				val = regexShape(re.Pattern, re.Options)
+			case string:
+				val = regexShape(re, "")
+			}
+		case "$options":
+			if s, ok := op.Value.(string); ok {
+				val = s
+			}
 		case "$elemMatch":
 			if sub := toD(op.Value); isOps(sub) {
 				val = shapeValue(sub)
@@ -209,19 +228,166 @@ func shapeValue(v interface{}) interface{} {
 	return out
 }
 
+// regexShape hides a regex pattern but keeps its flags and whether it is
+// anchored with ^, since both decide whether an index can bound the scan.
+func regexShape(pattern, options string) primitive.Regex {
+	p := "?"
+	if strings.HasPrefix(pattern, "^") || strings.HasPrefix(pattern, `\A`) {
+		p = "^?"
+	}
+	return primitive.Regex{Pattern: p, Options: options}
+}
+
+// stageNameKeys are stage options whose values name collections, fields or
+// merge modes rather than carry data, so they are kept verbatim.
+var stageNameKeys = map[string]bool{
+	"from": true, "coll": true, "db": true, "into": true, "on": true, "as": true,
+	"localField": true, "foreignField": true, "connectFromField": true, "connectToField": true,
+	"depthField": true, "distanceField": true, "includeLocs": true, "includeArrayIndex": true,
+	"path": true, "key": true, "field": true, "whenMatched": true, "whenNotMatched": true,
+}
+
+// ShapePipeline normalizes every stage of an aggregation pipeline: field
+// paths, operators, output names and collection names are kept, literal
+// values become "?".
+func ShapePipeline(p bson.A) bson.A {
+	out := make(bson.A, 0, len(p))
+	for _, raw := range p {
+		st := toD(raw)
+		if len(st) == 0 {
+			out = append(out, "?")
+			continue
+		}
+		shaped := make(bson.D, 0, len(st))
+		for _, e := range st {
+			shaped = append(shaped, bson.E{Key: e.Key, Value: shapeStage(e.Key, e.Value)})
+		}
+		out = append(out, shaped)
+	}
+	return out
+}
+
+func shapeStage(name string, arg interface{}) interface{} {
+	switch name {
+	case "$match":
+		return Shape(toD(arg))
+	case "$sort", "$unset", "$count":
+		return arg
+	case "$facet":
+		d := toD(arg)
+		out := make(bson.D, 0, len(d))
+		for _, e := range d {
+			out = append(out, bson.E{Key: e.Key, Value: ShapePipeline(toArr(e.Value))})
+		}
+		return out
+	case "$project":
+		d := toD(arg)
+		out := make(bson.D, 0, len(d))
+		for _, e := range d {
+			val := e.Value
+			if _, ok := num(val); !ok {
+				if _, ok := val.(bool); !ok {
+					val = shapeExpr(val)
+				}
+			}
+			out = append(out, bson.E{Key: e.Key, Value: val})
+		}
+		return out
+	case "$addFields", "$set", "$group", "$replaceRoot", "$replaceWith", "$redact", "$sortByCount", "$bucket", "$bucketAuto", "$setWindowFields":
+		return shapeExpr(arg)
+	}
+	// $out/$merge/$unionWith/$unwind take a bare collection or field name.
+	if s, ok := arg.(string); ok {
+		return s
+	}
+	d := toD(arg)
+	if d == nil {
+		return shapeExpr(arg)
+	}
+	out := make(bson.D, 0, len(d))
+	for _, e := range d {
+		val := e.Value
+		switch {
+		case stageNameKeys[e.Key]:
+		case e.Key == "pipeline":
+			val = ShapePipeline(toArr(e.Value))
+		case e.Key == "query" || e.Key == "restrictSearchWithMatch":
+			val = Shape(toD(e.Value))
+		default:
+			if _, ok := val.(bool); !ok {
+				val = shapeExpr(val)
+			}
+		}
+		out = append(out, bson.E{Key: e.Key, Value: val})
+	}
+	return out
+}
+
+// shapeExpr normalizes an aggregation expression: "$field" paths and
+// "$$variables", operators and document keys are kept; literals become "?".
+// An array made only of literals collapses to a single "?".
+func shapeExpr(v interface{}) interface{} {
+	switch x := v.(type) {
+	case string:
+		if strings.HasPrefix(x, "$") {
+			return x
+		}
+		return "?"
+	case primitive.Regex:
+		return regexShape(x.Pattern, x.Options)
+	case bson.A, []interface{}:
+		arr := toArr(x)
+		out := make(bson.A, 0, len(arr))
+		literal := true
+		for _, el := range arr {
+			s := shapeExpr(el)
+			if s != "?" {
+				literal = false
+			}
+			out = append(out, s)
+		}
+		if literal {
+			return "?"
+		}
+		return out
+	}
+	d := toD(v)
+	if d == nil {
+		return "?"
+	}
+	out := make(bson.D, 0, len(d))
+	for _, e := range d {
+		if e.Key == "$literal" {
+			out = append(out, bson.E{Key: e.Key, Value: "?"})
+			continue
+		}
+		out = append(out, bson.E{Key: e.Key, Value: shapeExpr(e.Value)})
+	}
+	return out
+}
+
 // ShapeText is a compact human-readable shape, e.g.
-// find {status: "?"} sort {created: -1}.
+// find {status: "?"} sort {created: -1}. Aggregations list every normalized
+// stage: aggregate [$match {...}, $group {...}].
 func (op Op) ShapeText() string {
 	var b strings.Builder
 	b.WriteString(op.Kind)
 	if op.Kind == "aggregate" {
-		var names []string
-		for _, raw := range op.Pipeline {
-			if st := toD(raw); len(st) > 0 {
-				names = append(names, st[0].Key)
+		var stages []string
+		for _, raw := range ShapePipeline(op.Pipeline) {
+			st := toD(raw)
+			if len(st) == 0 {
+				stages = append(stages, "?")
+				continue
 			}
+			parts := make([]string, 0, len(st))
+			for _, e := range st {
+				parts = append(parts, e.Key+" "+compact(e.Value, 0))
+			}
+			stages = append(stages, strings.Join(parts, " "))
 		}
-		b.WriteString(" [" + strings.Join(names, ", ") + "]")
+		b.WriteString(" [" + strings.Join(stages, ", ") + "]")
+		return b.String()
 	}
 	if len(op.Filter) > 0 {
 		b.WriteString(" " + compact(Shape(op.Filter), 0))

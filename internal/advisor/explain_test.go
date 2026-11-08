@@ -92,7 +92,7 @@ func TestExplainFixtures(t *testing.T) {
 		"fetchfilter": {flow: "IXSCAN status_1 → FETCH", finding: []string{"warn:Field cust is filtered after fetching"}, suggest: `{"status": 1, "cust": 1}`, extends: "status_1"},
 		"good":        {returned: 1, noIssues: true},
 		"group":       {flow: "status_1", noIssues: true},
-		"lookup":      {returned: 20, noIssues: true},
+		"lookup":      {returned: 20}, // engine-specific; see TestExplainLookup
 		"count":       {flow: "COUNT_SCAN status_1", returned: 5000, finding: []string{"good:Count answered"}, noIssues: true},
 		"distinct":    {flow: "DISTINCT_SCAN status_1", returned: 4, finding: []string{"good:Distinct values"}, noIssues: true},
 		"update":      {flow: "COLLSCAN → UPDATE", returned: 1, finding: []string{"bad:Collection scan"}, suggest: `{"cust": 1}`},
@@ -161,6 +161,38 @@ func TestExplainSBEDetails(t *testing.T) {
 	id := assess(t, getDoc(fx, "id"))
 	if used := id.Plan.Winning.IndexesUsed(); len(used) != 1 || used[0] != "_id_" {
 		t.Fatalf("express index: %v", used)
+	}
+}
+
+func TestExplainLookup(t *testing.T) {
+	classic := assess(t, getDoc(loadFixtures(t, "7"), "lookup"))
+	var ps PipeStage
+	for _, s := range classic.Plan.Pipeline {
+		if s.Name == "$lookup" {
+			ps = s
+		}
+	}
+	if getStr(ps.Spec, "from") != "users" || getStr(ps.Spec, "foreignField") != "name" ||
+		!ps.LookupStats || ps.CollScans != 20 || ps.Docs != 40 || len(ps.Indexes) != 0 {
+		t.Fatalf("classic $lookup stage: %+v", ps)
+	}
+	if !findingWith(classic, Warn, "$lookup from users scanned users 20 times") ||
+		!findingWith(classic, Warn, "db.users.createIndex({name: 1})") ||
+		findingWith(classic, Good, "Efficient") {
+		t.Fatalf("classic lookup findings: %+v", classic.Findings)
+	}
+
+	sbe := assess(t, getDoc(loadFixtures(t, "8"), "lookup"))
+	if hasSeverity(sbe.Findings, Warn, Bad) || !findingWith(sbe, Info, "hash join") {
+		t.Fatalf("SBE lookup findings: %+v", sbe.Findings)
+	}
+
+	indexed := Assess(&Plan{Pipeline: []PipeStage{{
+		Name: "$lookup", Spec: bson.D{{Key: "from", Value: "users"}},
+		LookupStats: true, Indexes: []string{"name_1"},
+	}}}, nil, nil)
+	if !findingWith(indexed, Good, "$lookup from users uses index name_1") {
+		t.Fatalf("indexed lookup findings: %+v", indexed.Findings)
 	}
 }
 

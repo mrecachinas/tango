@@ -24,10 +24,17 @@ type Stage struct {
 // PipeStage is an aggregation stage that runs after the query layer.
 type PipeStage struct {
 	Name      string
+	Spec      bson.D // the operator's argument, e.g. {from, localField, ...} for $lookup
 	NReturned int64
 	TimeMs    int64
 	Stats     bool
 	UsedDisk  bool
+
+	// Classic $lookup execution counters for the foreign collection.
+	LookupStats bool
+	Keys, Docs  int64
+	CollScans   int64
+	Indexes     []string
 }
 
 // Plan is a parsed explain result.
@@ -215,13 +222,23 @@ func pipeStage(st bson.D) PipeStage {
 	ps := PipeStage{UsedDisk: getBool(st, "usedDisk")}
 	for _, e := range st {
 		if strings.HasPrefix(e.Key, "$") {
-			ps.Name = e.Key
+			ps.Name, ps.Spec = e.Key, toD(e.Value)
 			break
 		}
 	}
 	if n, ok := getNum(st, "nReturned"); ok {
 		ps.Stats, ps.NReturned = true, int64(n)
 		ps.TimeMs = getInt(st, "executionTimeMillisEstimate")
+	}
+	if _, ok := getNum(st, "collectionScans"); ok {
+		ps.LookupStats = true
+		ps.CollScans = getInt(st, "collectionScans")
+		ps.Docs, ps.Keys = getInt(st, "totalDocsExamined"), getInt(st, "totalKeysExamined")
+		for _, ix := range getArr(st, "indexesUsed") {
+			if name, ok := ix.(string); ok {
+				ps.Indexes = append(ps.Indexes, name)
+			}
+		}
 	}
 	return ps
 }
@@ -508,6 +525,11 @@ func Assess(p *Plan, op *Op, indexSpecs []bson.D) Analysis {
 			}
 		})
 	}
+	for _, ps := range p.Pipeline {
+		if ps.Name == "$lookup" && ps.LookupStats {
+			assessLookup(ps, add)
+		}
+	}
 	if p.HasStats && p.RatioReliable() {
 		ret := p.Returned()
 		worst := max(p.Docs, p.Keys)
@@ -538,6 +560,29 @@ func Assess(p *Plan, op *Op, indexSpecs []bson.D) Analysis {
 	}
 	sort.SliceStable(a.Findings, func(i, j int) bool { return a.Findings[i].Severity > a.Findings[j].Severity })
 	return a
+}
+
+// assessLookup reports how a classic-engine $lookup read its foreign
+// collection, from the counters on the aggregate stage.
+func assessLookup(ps PipeStage, add func(Severity, string, ...interface{})) {
+	from := getStr(ps.Spec, "from")
+	if from == "" {
+		from = getStr(getDoc(ps.Spec, "from"), "coll")
+	}
+	field := getStr(ps.Spec, "foreignField")
+	switch {
+	case ps.CollScans > 0:
+		msg := fmt.Sprintf("$lookup from %s scanned %s %s times (%s documents examined).",
+			from, from, Count(ps.CollScans), Count(ps.Docs))
+		if field != "" {
+			msg += fmt.Sprintf(" Index it: %s.createIndex({%s: 1})", CollRef(from), field)
+		} else {
+			msg += " Index the fields its pipeline matches on."
+		}
+		add(Warn, "%s", msg)
+	case len(ps.Indexes) > 0:
+		add(Good, "$lookup from %s uses index %s.", from, strings.Join(ps.Indexes, ", "))
+	}
 }
 
 // Returned is the number of results a plan produced. COUNT, UPDATE and

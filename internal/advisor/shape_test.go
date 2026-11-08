@@ -53,12 +53,69 @@ func TestShape(t *testing.T) {
 	if compact(a, 0) != compact(b, 0) {
 		t.Fatalf("shapes differ:\n%s\n%s", compact(a, 0), compact(b, 0))
 	}
-	want := `{"$or": [{"c": {"$gt": "?", "$lt": "?"}}, {"d": "?"}], "a": "?", "b": {"$in": "?"}, "e": {"$elemMatch": {"f": "?"}}, "g": {"$not": {"$gt": "?"}}}`
+	want := `{"$or": [{"c": {"$gt": "?", "$lt": "?"}}, {"d": /?/}], "a": "?", "b": {"$in": "?"}, "e": {"$elemMatch": {"f": "?"}}, "g": {"$not": {"$gt": "?"}}}`
 	if got := compact(a, 0); got != want {
 		t.Fatalf("shape %s", got)
 	}
 	if compact(Shape(doc(t, `{a: {x: 1}}`)), 0) != `{"a": "?"}` {
 		t.Fatal("embedded document equality is a value")
+	}
+}
+
+func TestShapeRegex(t *testing.T) {
+	shape := func(src string) string { return compact(Shape(doc(t, src)), 0) }
+	eq, prefix := shape(`{name: "ab"}`), shape(`{name: /^ab/}`)
+	if eq == prefix || prefix != `{"name": /^?/}` {
+		t.Fatalf("equality %s, prefix regex %s", eq, prefix)
+	}
+	if got := shape(`{name: /ab/i}`); got != `{"name": /?/i}` {
+		t.Fatalf("unanchored %s", got)
+	}
+	if got := shape(`{name: {$regex: "^cd", $options: "i"}}`); got != `{"name": {"$options": "i", "$regex": /^?/}}` {
+		t.Fatalf("$regex %s", got)
+	}
+	if got := shape(`{name: {$not: /^x/}}`); got != `{"name": {"$not": /^?/}}` {
+		t.Fatalf("$not regex %s", got)
+	}
+	if shape(`{name: /^zz/}`) != prefix {
+		t.Fatal("regex patterns should group together")
+	}
+}
+
+func TestShapeAggregate(t *testing.T) {
+	text := func(src string) string {
+		op, ok := OpFromCommand(doc(t, `{aggregate: "o", pipeline: `+src+`}`))
+		if !ok {
+			t.Fatalf("not an op: %s", src)
+		}
+		return op.ShapeText()
+	}
+	byCust := text(`[{$match: {status: "A", qty: {$gt: 5}}}, {$group: {_id: "$customer", n: {$sum: 1}, total: {$sum: "$qty"}}}, {$sort: {n: -1}}, {$limit: 10}]`)
+	want := `aggregate [$match {"qty": {"$gt": "?"}, "status": "?"}, $group {"_id": "$customer", "n": {"$sum": "?"}, "total": {"$sum": "$qty"}}, $sort {"n": -1}, $limit "?"]`
+	if byCust != want {
+		t.Fatalf("shape\n got %s\nwant %s", byCust, want)
+	}
+	if same := text(`[{$match: {qty: {$gt: 99}, status: "B"}}, {$group: {_id: "$customer", n: {$sum: 1}, total: {$sum: "$qty"}}}, {$sort: {n: -1}}, {$limit: 50}]`); same != byCust {
+		t.Fatalf("literal-only change split the shape:\n%s\n%s", same, byCust)
+	}
+	if byRegion := text(`[{$match: {status: "A", qty: {$gt: 5}}}, {$group: {_id: "$region", n: {$sum: 1}, total: {$sum: "$qty"}}}, {$sort: {n: -1}}, {$limit: 10}]`); byRegion == byCust {
+		t.Fatalf("$group keys merged: %s", byRegion)
+	}
+
+	lookup := func(from string) string {
+		return text(`[{$match: {a: 1}}, {$lookup: {from: "` + from + `", localField: "cid", foreignField: "_id", as: "c"}}, {$unwind: {path: "$c", preserveNullAndEmptyArrays: true}}]`)
+	}
+	if got := lookup("customers"); got != `aggregate [$match {"a": "?"}, $lookup {"from": "customers", "localField": "cid", "foreignField": "_id", "as": "c"}, $unwind {"path": "$c", "preserveNullAndEmptyArrays": true}]` {
+		t.Fatalf("lookup %s", got)
+	}
+	if lookup("customers") == lookup("vendors") {
+		t.Fatal("$lookup.from merged")
+	}
+
+	nested := text(`[{$lookup: {from: "c", let: {id: "$cid"}, pipeline: [{$match: {$expr: {$eq: ["$_id", "$$id"]}, kind: "x"}}, {$project: {name: 1, tag: "lit"}}], as: "c"}}, {$facet: {top: [{$limit: 3}]}}, {$merge: {into: "out", on: "_id", whenMatched: "merge"}}]`)
+	wantNested := `aggregate [$lookup {"from": "c", "let": {"id": "$cid"}, "pipeline": [{"$match": {"$expr": {"$eq": ["$_id", "$$id"]}, "kind": "?"}}, {"$project": {"name": 1, "tag": "?"}}], "as": "c"}, $facet {"top": [{"$limit": "?"}]}, $merge {"into": "out", "on": "_id", "whenMatched": "merge"}]`
+	if nested != wantNested {
+		t.Fatalf("nested\n got %s\nwant %s", nested, wantNested)
 	}
 }
 

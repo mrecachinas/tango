@@ -269,3 +269,106 @@ func TestInsightsProfilerState(t *testing.T) {
 		t.Errorf("quiet db: %+v", ins.Recommendations)
 	}
 }
+
+func TestInsightsRedundancySkipsSpecialIndexes(t *testing.T) {
+	idx := func(name string, keys bson.D) bson.D {
+		return bson.D{{Key: "name", Value: name}, {Key: "key", Value: keys}}
+	}
+	in := InsightsInput{DB: "d", ProfileLevel: 1, Collections: []CollectionInfo{{
+		Name: "c",
+		Indexes: []bson.D{
+			idx("a_1", bson.D{{Key: "a", Value: 1}}),
+			idx("a_1_loc_2dsphere", bson.D{{Key: "a", Value: 1}, {Key: "loc", Value: "2dsphere"}}),
+			idx("b_1", bson.D{{Key: "b", Value: 1}}),
+			idx("b_1_t_text", bson.D{{Key: "b", Value: 1}, {Key: "_fts", Value: "text"}, {Key: "_ftsx", Value: 1}}),
+			idx("h_hashed", bson.D{{Key: "h", Value: "hashed"}}),
+			idx("h_1_x_1", bson.D{{Key: "h", Value: 1}, {Key: "x", Value: 1}}),
+			idx("w_1", bson.D{{Key: "w.$**", Value: 1}}),
+			idx("w_1_y_1", bson.D{{Key: "w.$**", Value: 1}, {Key: "y", Value: 1}}),
+			idx("p_1", bson.D{{Key: "p", Value: 1}}),
+			idx("p_1_q_1", bson.D{{Key: "p", Value: 1}, {Key: "q", Value: 1}}),
+		},
+	}}}
+	got := map[string]string{}
+	for _, u := range Analyze(in).Indexes {
+		got[u.Name] = u.RedundantWith
+	}
+	for _, name := range []string{"a_1", "b_1", "h_hashed", "w_1"} {
+		if got[name] != "" {
+			t.Errorf("%s flagged redundant with %s", name, got[name])
+		}
+	}
+	if got["p_1"] != "p_1_q_1" {
+		t.Errorf("plain prefix not flagged: %+v", got)
+	}
+}
+
+func TestInsightsUnknownCatalog(t *testing.T) {
+	now := time.Now()
+	find := func(coll string) bson.D {
+		return bson.D{{Key: "find", Value: coll}, {Key: "filter", Value: bson.D{{Key: "a", Value: 1}}}}
+	}
+	ids := []bson.D{{{Key: "name", Value: "_id_"}, {Key: "key", Value: bson.D{{Key: "_id", Value: 1}}}}}
+	in := InsightsInput{
+		DB: "d", Now: now, ProfileLevel: 1,
+		Profile: []bson.D{
+			profileEntry("query", "d.known", find("known"), 300, 50000, 0, 1, "COLLSCAN", now),
+			profileEntry("query", "d.failed", find("failed"), 200, 50000, 0, 1, "COLLSCAN", now),
+			profileEntry("query", "d.capped", find("capped"), 100, 50000, 0, 1, "COLLSCAN", now),
+		},
+		Collections: []CollectionInfo{
+			{Name: "known", Indexes: ids},
+			{Name: "failed", IndexesErr: errors.New("timeout")},
+		},
+	}
+	ins := Analyze(in)
+	if r := findRec(ins.Recommendations, "Add an index on known for Q1"); r == nil {
+		t.Errorf("known catalog should get an index rec: %+v", ins.Recommendations)
+	}
+	for _, c := range []struct{ coll, id string }{{"failed", "Q2"}, {"capped", "Q3"}} {
+		if r := findRec(ins.Recommendations, "Add an index on "+c.coll); r != nil {
+			t.Errorf("unknown catalog for %s got an index rec: %+v", c.coll, r)
+		}
+		if r := findRec(ins.Recommendations, c.id+" scans "+c.coll+", whose indexes weren't read"); r == nil || r.Command != ":explain "+c.id {
+			t.Errorf("%s: unknown catalog rec = %+v", c.coll, r)
+		}
+	}
+	for _, s := range ins.Shapes {
+		if s.NS != "d.known" && s.Missing != nil {
+			t.Errorf("%s: Missing set without a catalog: %+v", s.NS, s.Missing)
+		}
+	}
+}
+
+func TestInsightsShardedIndexStats(t *testing.T) {
+	early, late := time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour)
+	stat := func(name, shard string, ops int64, since time.Time) bson.D {
+		return bson.D{{Key: "name", Value: name}, {Key: "shard", Value: shard},
+			{Key: "accesses", Value: bson.D{{Key: "ops", Value: ops}, {Key: "since", Value: since}}}}
+	}
+	idx := func(name, field string) bson.D {
+		return bson.D{{Key: "name", Value: name}, {Key: "key", Value: bson.D{{Key: field, Value: 1}}}}
+	}
+	in := InsightsInput{DB: "d", ProfileLevel: 1, Collections: []CollectionInfo{{
+		Name:    "c",
+		Indexes: []bson.D{idx("a_1", "a"), idx("b_1", "b")},
+		IndexStats: []bson.D{
+			stat("a_1", "s0", 500, early), stat("a_1", "s1", 0, late),
+			stat("b_1", "s0", 0, early), stat("b_1", "s1", 0, late),
+		},
+	}}}
+	ins := Analyze(in)
+	got := map[string]IndexUsage{}
+	for _, u := range ins.Indexes {
+		got[u.Name] = u
+	}
+	if a := got["a_1"]; a.Ops != 500 || a.Unused() {
+		t.Errorf("a_1 = %+v, want ops summed across shards", a)
+	}
+	if b := got["b_1"]; b.Ops != 0 || !b.Unused() || !b.Since.Equal(late) {
+		t.Errorf("b_1 = %+v, want unused since the latest shard reset", b)
+	}
+	if findRec(ins.Recommendations, "c.a_1") != nil {
+		t.Errorf("a_1 flagged: %+v", ins.Recommendations)
+	}
+}

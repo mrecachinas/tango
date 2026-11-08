@@ -103,11 +103,20 @@ func KeysDoc(keys []Key) bson.D {
 // KeysString renders keys like {a: 1, b: -1}.
 func KeysString(keys []Key) string { return compact(KeysDoc(keys), 0) }
 
-func (ix Index) usable(needsFilter bool) bool {
+func (ix Index) usable(sparseOK bool) bool {
 	if ix.Hidden || ix.Partial || ix.Special || ix.Collation {
 		return false
 	}
-	return !ix.Sparse || needsFilter
+	return !ix.Sparse || sparseOK
+}
+
+// replaceable reports whether ix is a plain B-tree index whose only purpose
+// is its key order, so a longer index with the same leading keys can take
+// its place. TTL, unique, sparse, partial and collation indexes carry
+// behavior a suggested index would not reproduce.
+func (ix Index) replaceable() bool {
+	return ix.Name != "_id_" && !ix.Unique && !ix.TTL && !ix.Sparse &&
+		!ix.Partial && !ix.Hidden && !ix.Collation && !ix.Special
 }
 
 // IsPrefixOf reports whether ix's keys lead other's, in the same or fully
@@ -149,6 +158,13 @@ type preds struct {
 	cls   map[string]class
 	notes []string
 	or    bson.A
+	// present maps each filtered field to whether its predicate excludes
+	// documents missing the field, which decides sparse index eligibility.
+	present map[string]bool
+}
+
+func newPreds() *preds {
+	return &preds{cls: map[string]class{}, present: map[string]bool{}}
 }
 
 func (p *preds) add(field string, c class) {
@@ -210,6 +226,7 @@ func (p *preds) collect(filter bson.D) {
 				continue
 			}
 			p.add(e.Key, p.classify(e.Key, e.Value))
+			p.present[e.Key] = p.present[e.Key] || excludesMissing(e.Value)
 		}
 	}
 }
@@ -274,6 +291,47 @@ func (p *preds) classify(field string, v interface{}) class {
 	return clsEq
 }
 
+// excludesMissing reports whether a field predicate can only match documents
+// where the field exists. Unknown operators are assumed to match missing.
+func excludesMissing(v interface{}) bool {
+	switch x := v.(type) {
+	case nil, primitive.Null, primitive.Undefined:
+		return false
+	case primitive.Regex:
+		return true
+	case bson.D, bson.M:
+		d := toD(x)
+		if len(d) == 0 || !strings.HasPrefix(d[0].Key, "$") {
+			return true
+		}
+		for _, op := range d {
+			switch op.Key {
+			case "$eq", "$gt", "$gte", "$lt", "$lte":
+				if excludesMissing(op.Value) {
+					return true
+				}
+			case "$in", "$all":
+				arr := toArr(op.Value)
+				ok := len(arr) > 0
+				for _, el := range arr {
+					ok = ok && excludesMissing(el)
+				}
+				if ok {
+					return true
+				}
+			case "$exists":
+				if b, isBool := op.Value.(bool); isBool && b {
+					return true
+				}
+			case "$regex", "$elemMatch", "$size", "$mod", "$type":
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
 // Suggestion is an index shaped by the ESR rule: equality fields first, then
 // sort fields in order, then range fields, then low-selectivity predicates.
 type Suggestion struct {
@@ -282,9 +340,11 @@ type Suggestion struct {
 	Range    []string
 	Low      []string
 	Notes    []string
-	// Extends names an existing index that is a prefix of this one and could
-	// be dropped once this index is built.
+	// Extends names an existing index whose keys literally lead this one's
+	// and that could be dropped once this index is built.
 	Extends string
+	// present mirrors preds.present for sparse index eligibility.
+	present map[string]bool
 }
 
 // Keys returns the suggested key pattern.
@@ -329,22 +389,33 @@ func (s Suggestion) Rationale() string {
 	return strings.Join(parts, " → ")
 }
 
+// maxOrDepth bounds how many nested $or levels Suggest expands.
+const maxOrDepth = 4
+
 // Suggest derives index suggestions for a filter and sort. A top-level $or
 // yields one suggestion per branch, since each branch is planned separately.
-func Suggest(filter, sort bson.D) []Suggestion {
-	p := &preds{cls: map[string]class{}}
-	p.collect(filter)
-	if p.or != nil {
+func Suggest(filter, sort bson.D) []Suggestion { return suggest(filter, sort, 0) }
+
+func suggest(filter, sort bson.D, depth int) []Suggestion {
+	flat := flattenAnd(filter, nil)
+	p := newPreds()
+	p.collect(flat)
+	if p.or != nil && depth >= maxOrDepth {
+		p.note("Deeply nested $or branches are not analyzed; each branch needs its own index.")
+	} else if p.or != nil {
+		// Every $or is dropped from the shared predicates: the first is
+		// expanded below, the rest were noted by collect. Each recursive call
+		// therefore sees strictly less nesting and terminates.
 		var rest bson.D
-		for _, e := range filter {
+		for _, e := range flat {
 			if e.Key != "$or" {
 				rest = append(rest, e)
 			}
 		}
 		var out []Suggestion
 		for _, branch := range asDocs(p.or) {
-			merged := append(append(bson.D{}, rest...), bson.E{Key: "$and", Value: bson.A{branch}})
-			for _, s := range Suggest(merged, sort) {
+			merged := flattenAnd(branch, append(bson.D{}, rest...))
+			for _, s := range suggest(merged, sort, depth+1) {
 				s.Notes = mergeNotes(s.Notes, p.notes)
 				out = appendUnique(out, s)
 			}
@@ -355,6 +426,21 @@ func Suggest(filter, sort bson.D) []Suggestion {
 		return []Suggestion{s}
 	}
 	return nil
+}
+
+// flattenAnd appends filter's predicates to out, hoisting nested $and
+// clauses so every $or ends up at the top level.
+func flattenAnd(filter, out bson.D) bson.D {
+	for _, e := range filter {
+		if e.Key == "$and" {
+			for _, sub := range asDocs(toArr(e.Value)) {
+				out = flattenAnd(sub, out)
+			}
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 func mergeNotes(a, b []string) []string {
@@ -381,7 +467,7 @@ func appendUnique(list []Suggestion, s Suggestion) []Suggestion {
 }
 
 func build(p *preds, sort bson.D) (Suggestion, bool) {
-	s := Suggestion{Notes: p.notes}
+	s := Suggestion{Notes: p.notes, present: p.present}
 	var ins []string
 	for _, f := range p.order {
 		switch p.cls[f] {
@@ -487,9 +573,65 @@ func (s Suggestion) prefixMatch(idx []Key) int {
 	return pos
 }
 
+// sparseOK reports whether a sparse index on keys can answer the filter: at
+// least one indexed field is filtered and every filtered indexed field is
+// constrained so that documents missing it can't match.
+func (s Suggestion) sparseOK(keys []Key) bool {
+	filtered := false
+	for _, k := range keys {
+		excl, ok := s.present[k.Field]
+		if !ok {
+			continue
+		}
+		if !excl {
+			return false
+		}
+		filtered = true
+	}
+	return filtered
+}
+
+// alignTo reorders the equality and range groups, whose internal order is
+// free under ESR, to follow idx where it overlaps them.
+func (s Suggestion) alignTo(idx []Key) Suggestion {
+	window := func(start, n int) []Key {
+		if start >= len(idx) {
+			return nil
+		}
+		return idx[start:min(start+n, len(idx))]
+	}
+	out := s
+	out.Equality = reorder(s.Equality, window(0, len(s.Equality)))
+	out.Range = reorder(s.Range, window(len(s.Equality)+len(s.Sort), len(s.Range)))
+	return out
+}
+
+func reorder(fields []string, by []Key) []string {
+	want := map[string]bool{}
+	for _, f := range fields {
+		want[f] = true
+	}
+	out := make([]string, 0, len(fields))
+	used := map[string]bool{}
+	for _, k := range by {
+		if want[k.Field] && !used[k.Field] {
+			out = append(out, k.Field)
+			used[k.Field] = true
+		}
+	}
+	for _, f := range fields {
+		if !used[f] {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // Against compares the suggestion with existing indexes. satisfied names an
 // index that already serves the query shape; otherwise Extends is set when
-// an existing non-unique index is a prefix of the suggestion.
+// an existing plain index is a literal key prefix of the suggestion (after
+// reordering its equality and range fields to match), so dropping it once
+// the suggestion is built loses no access path.
 func (s Suggestion) Against(indexes []Index) (satisfied string, out Suggestion) {
 	out = s
 	essential := len(s.Equality) + len(s.Sort) + len(s.Range)
@@ -497,18 +639,22 @@ func (s Suggestion) Against(indexes []Index) (satisfied string, out Suggestion) 
 	if essential == 0 {
 		essential = total
 	}
-	needsFilter := len(s.Equality)+len(s.Range)+len(s.Low) > 0
 	best := 0
 	for _, ix := range indexes {
-		if !ix.usable(needsFilter) {
+		if !ix.usable(s.sparseOK(ix.Keys)) {
 			continue
 		}
 		n := s.prefixMatch(ix.Keys)
 		if n >= essential {
 			return ix.Name, s
 		}
-		if n == len(ix.Keys) && n > best && !ix.Unique && ix.Name != "_id_" {
-			best, out.Extends = n, ix.Name
+		if n != len(ix.Keys) || n <= best || !ix.replaceable() {
+			continue
+		}
+		aligned := s.alignTo(ix.Keys)
+		if ix.IsPrefixOf(Index{Keys: aligned.Keys()}) {
+			best, out = n, aligned
+			out.Extends = ix.Name
 		}
 	}
 	return "", out

@@ -10,10 +10,13 @@ import (
 )
 
 // CollectionInfo is what Analyze needs to know about one collection.
+// Collections absent from InsightsInput.Collections, or whose IndexesErr is
+// set, have an unknown index catalog and get no missing-index advice.
 type CollectionInfo struct {
 	Name       string
 	Indexes    []bson.D // listIndexes
-	IndexStats []bson.D // $indexStats
+	IndexesErr error
+	IndexStats []bson.D // $indexStats; one per index per shard through mongos
 	IndexSizes bson.D   // $collStats storageStats.indexSizes
 }
 
@@ -167,9 +170,14 @@ func Analyze(in InsightsInput) Insights {
 	out := Insights{DB: in.DB, ProfileLevel: in.ProfileLevel, SlowMs: in.SlowMs, ProfileEntries: len(in.Profile)}
 	indexes := map[string][]Index{}
 	for _, c := range in.Collections {
-		for _, spec := range c.Indexes {
-			indexes[c.Name] = append(indexes[c.Name], ParseIndex(spec))
+		if c.IndexesErr != nil {
+			continue
 		}
+		ixs := make([]Index, 0, len(c.Indexes))
+		for _, spec := range c.Indexes {
+			ixs = append(ixs, ParseIndex(spec))
+		}
+		indexes[c.Name] = ixs
 	}
 
 	out.Shapes = aggregateShapes(in, &out)
@@ -323,13 +331,18 @@ func shapeRecs(shapes []ShapeStat, indexes map[string][]Index) []Recommendation 
 		}
 		why := fmt.Sprintf("%s ran %s× for %s total%s", st.ID, Count(st.Count), Millis(st.TotalMs), perRun)
 		suggestions := Suggest(st.Op.Filter, st.Op.Sort)
+		catalog, known := indexes[st.Op.Coll]
 		var fits []string
-		emitted := false
+		emitted, unknown := false, false
 		for _, s := range suggestions {
 			if len(s.Keys()) == 0 {
 				continue
 			}
-			satisfied, s := s.Against(indexes[st.Op.Coll])
+			if !known {
+				unknown = true
+				break
+			}
+			satisfied, s := s.Against(catalog)
 			if satisfied != "" {
 				fits = append(fits, satisfied)
 				continue
@@ -367,7 +380,16 @@ func shapeRecs(shapes []ShapeStat, indexes map[string][]Index) []Recommendation 
 			})
 			emitted = true
 		}
-		if !emitted {
+		switch {
+		case unknown:
+			recs = append(recs, Recommendation{
+				Severity: Info,
+				Title:    fmt.Sprintf("%s scans %s, whose indexes weren't read", st.ID, st.Op.Coll),
+				Detail:   why + ". Without its index list there's no telling whether an index already fits; explain shows the plan and index advice.",
+				Command:  ":explain " + st.ID,
+				Refs:     []string{st.ID},
+			})
+		case !emitted:
 			recs = append(recs, unindexableRec(st, fits, why)...)
 		}
 	}
@@ -469,9 +491,21 @@ func hasChangeStream(p bson.A) bool {
 func indexUsage(in InsightsInput) []IndexUsage {
 	var out []IndexUsage
 	for _, c := range in.Collections {
-		stats := map[string]bson.D{}
+		// Through mongos $indexStats returns one document per index per shard.
+		type usage struct {
+			ops   int64
+			since time.Time
+		}
+		stats := map[string]usage{}
 		for _, st := range c.IndexStats {
-			stats[getStr(st, "name")] = st
+			name := getStr(st, "name")
+			u := stats[name]
+			u.ops += getInt(st, "accesses.ops")
+			// The latest reset bounds the window every shard has counted.
+			if t, ok := timeOf(get(st, "accesses.since")); ok && t.After(u.since) {
+				u.since = t
+			}
+			stats[name] = u
 		}
 		parsed := make([]Index, len(c.Indexes))
 		for i, spec := range c.Indexes {
@@ -487,12 +521,13 @@ func indexUsage(in InsightsInput) []IndexUsage {
 			}
 			if st, ok := stats[ix.Name]; ok {
 				u.HasStats = true
-				u.Ops = getInt(st, "accesses.ops")
-				u.Since, _ = timeOf(get(st, "accesses.since"))
+				u.Ops, u.Since = st.ops, st.since
 			}
-			if ix.Name != "_id_" && !ix.Unique && !ix.TTL && !ix.Partial && !ix.Sparse && !ix.Collation {
+			// Only plain B-tree indexes compare: special ones (2dsphere, text,
+			// hashed, wildcard...) can omit documents or can't serve range scans.
+			if ix.Name != "_id_" && !ix.Unique && !ix.TTL && !ix.Partial && !ix.Sparse && !ix.Collation && !ix.Special {
 				for j, other := range parsed {
-					if i == j || other.Partial || other.Sparse || other.Hidden || other.Collation || !ix.IsPrefixOf(other) {
+					if i == j || other.Partial || other.Sparse || other.Hidden || other.Collation || other.Special || !ix.IsPrefixOf(other) {
 						continue
 					}
 					// Identical keys: flag only one of the pair.

@@ -76,17 +76,14 @@ func fetchInsights(ctx context.Context, client *mongo.Client, db string) advisor
 	names, _ := database.ListCollectionNames(ctx, bson.D{{Key: "type", Value: "collection"}},
 		options.ListCollections().SetAuthorizedCollections(true))
 	names = slicesFilter(names, func(n string) bool { return !strings.HasPrefix(n, "system.") })
-	sort.Strings(names)
-	if len(names) > insightsMaxColls {
-		names = names[:insightsMaxColls]
-	}
+	names = capCollections(names, db, in.Profile, insightsMaxColls)
 	in.Collections = make([]advisor.CollectionInfo, len(names))
 	forEachLimit(len(names), listConcurrency, func(i int) {
 		c, cancel := context.WithTimeout(ctx, perItemTimeout)
 		defer cancel()
 		coll := database.Collection(names[i])
 		info := advisor.CollectionInfo{Name: names[i]}
-		_ = readAll(c, &info.Indexes, func(c context.Context) (*mongo.Cursor, error) { return coll.Indexes().List(c) })
+		info.IndexesErr = readAll(c, &info.Indexes, func(c context.Context) (*mongo.Cursor, error) { return coll.Indexes().List(c) })
 		_ = readAll(c, &info.IndexStats, func(c context.Context) (*mongo.Cursor, error) {
 			return coll.Aggregate(c, bson.A{bson.D{{Key: "$indexStats", Value: bson.D{}}}})
 		})
@@ -94,14 +91,7 @@ func fetchInsights(ctx context.Context, client *mongo.Client, db string) advisor
 		_ = readAll(c, &cs, func(c context.Context) (*mongo.Cursor, error) {
 			return coll.Aggregate(c, bson.A{bson.D{{Key: "$collStats", Value: bson.D{{Key: "storageStats", Value: bson.D{}}}}}})
 		})
-		if len(cs) > 0 {
-			if ss, ok := mjson.Get(cs[0], "storageStats"); ok {
-				if d, ok := ss.(bson.D); ok {
-					sizes, _ := mjson.Get(d, "indexSizes")
-					info.IndexSizes, _ = sizes.(bson.D)
-				}
-			}
-		}
+		info.IndexSizes = sumIndexSizes(cs)
 		in.Collections[i] = info
 	})
 
@@ -123,6 +113,53 @@ func fetchInsights(ctx context.Context, client *mongo.Client, db string) advisor
 		}
 	}
 	return in
+}
+
+// capCollections sorts names and keeps at most limit, preferring collections
+// the profiler recorded so their query shapes can be checked against indexes.
+func capCollections(names []string, db string, profile []bson.D, limit int) []string {
+	sort.Strings(names)
+	if len(names) <= limit {
+		return names
+	}
+	profiled := map[string]bool{}
+	for _, e := range profile {
+		if ns, ok := mjson.Get(e, "ns"); ok {
+			if s, ok := ns.(string); ok && strings.HasPrefix(s, db+".") {
+				profiled[strings.TrimPrefix(s, db+".")] = true
+			}
+		}
+	}
+	sort.SliceStable(names, func(i, j int) bool { return profiled[names[i]] && !profiled[names[j]] })
+	names = names[:limit]
+	sort.Strings(names)
+	return names
+}
+
+// sumIndexSizes adds up storageStats.indexSizes across $collStats documents;
+// through mongos there is one per shard.
+func sumIndexSizes(docs []bson.D) bson.D {
+	var out bson.D
+	at := map[string]int{}
+	for _, d := range docs {
+		ss, _ := mjson.Get(d, "storageStats")
+		ssd, _ := ss.(bson.D)
+		sizes, _ := mjson.Get(ssd, "indexSizes")
+		sd, _ := sizes.(bson.D)
+		for _, e := range sd {
+			n, ok := state.ToFloat64(e.Value)
+			if !ok {
+				continue
+			}
+			if i, seen := at[e.Key]; seen {
+				out[i].Value = out[i].Value.(float64) + n
+				continue
+			}
+			at[e.Key] = len(out)
+			out = append(out, bson.E{Key: e.Key, Value: n})
+		}
+	}
+	return out
 }
 
 func readAll(ctx context.Context, out *[]bson.D, open func(context.Context) (*mongo.Cursor, error)) error {

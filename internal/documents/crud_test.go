@@ -26,6 +26,7 @@ func TestCurrentDocIgnoresHiddenListCursorOutsideDocumentViews(t *testing.T) {
 		{view: "tree"},
 		{view: "indexes"},
 		{view: "stats"},
+		{view: "insights"},
 	} {
 		state.S = &state.AppState{
 			View:             tc.view,
@@ -48,7 +49,7 @@ func TestDeleteDocumentConfirmOnlyFromList(t *testing.T) {
 	t.Cleanup(func() { state.S = oldState })
 
 	doc := bson.D{{Key: "_id", Value: "hidden"}}
-	for _, view := range []string{"detail", "tree", "indexes", "stats", "list"} {
+	for _, view := range []string{"detail", "tree", "indexes", "stats", "insights", "list"} {
 		state.S = &state.AppState{
 			View:          view,
 			CurrentDocs:   []bson.D{doc},

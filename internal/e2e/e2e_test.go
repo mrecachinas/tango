@@ -700,14 +700,36 @@ func TestEndToEnd(t *testing.T) {
 		}
 		e.key("esc", 0)
 
+		// E explains the page as the list fetched it: the snapshot cap on _id
+		// makes the planner walk the _id index and filter i after fetching.
 		e.query(`{i: 7}`)
 		e.key("rune", 'E')
 		e.waitFor("explain current", func() bool { return s.View == "detail" && strings.HasPrefix(s.DetailTitle, "Explain") })
-		if text := detailText(); !strings.Contains(text, "COLLSCAN") || !strings.Contains(text, "executionStats") {
-			t.Errorf("E report:\n%s", text)
+		text = detailText()
+		for _, want := range []string{"executionStats", `"$not": {"$gt"`, "IXSCAN _id_", "20,000:1"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("E report lacks %q:\n%s", want, text)
+			}
 		}
 		e.key("esc", 0)
 		e.query("")
+
+		// A later unfiltered page is fetched through the _id index from the
+		// previous page's last _id.
+		e.onUI(func() { documents.NextPage() })
+		e.idle()
+		e.key("rune", 'E')
+		e.waitFor("explain keyset page", func() bool { return s.View == "detail" && strings.HasPrefix(s.DetailTitle, "Explain") })
+		text = detailText()
+		for _, want := range []string{".hint({\"_id\": 1}).min({\"_id\":", "IXSCAN _id_"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("keyset E report lacks %q:\n%s", want, text)
+			}
+		}
+		if strings.Contains(text, "COLLSCAN") {
+			t.Errorf("keyset page explained as a collection scan:\n%s", text)
+		}
+		e.key("esc", 0)
 	})
 
 	t.Run("insights finds slow shapes and recommends an index", func(t *testing.T) {
