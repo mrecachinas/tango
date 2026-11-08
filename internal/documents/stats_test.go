@@ -41,7 +41,7 @@ func TestStatsSectionsKeepTypedLayoutAndCounts(t *testing.T) {
 	if ops.Note != "(2)" || ops.Rows[0][0] != "34" || ops.Rows[0][3] != "20" || !ops.Columns[3].Right {
 		t.Fatalf("operations ordering or numeric column: %+v", ops)
 	}
-	if !strings.Contains(ops.Rows[1][5], long) {
+	if !strings.Contains(ops.Rows[1][6], long) {
 		t.Fatal("command was truncated before viewport layout")
 	}
 	if len(top.Rows) != 1 || top.Rows[0][0] != "app.events" || top.Rows[0][3] != "40" {

@@ -1,0 +1,3070 @@
+{
+ "collscan": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "cust": {
+     "$eq": "c7"
+    }
+   },
+   "queryHash": "48100F51",
+   "planCacheKey": "48100F51",
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "COLLSCAN",
+    "filter": {
+     "cust": {
+      "$eq": "c7"
+     }
+    },
+    "direction": "forward"
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "20"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "4"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "0"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "20000"
+   },
+   "executionStages": {
+    "stage": "COLLSCAN",
+    "filter": {
+     "cust": {
+      "$eq": "c7"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "20001"
+    },
+    "advanced": {
+     "$numberInt": "20"
+    },
+    "needTime": {
+     "$numberInt": "19980"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "20"
+    },
+    "restoreState": {
+     "$numberInt": "20"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "20000"
+    }
+   }
+  },
+  "command": {
+   "find": "orders",
+   "filter": {
+    "cust": "c7"
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "sort": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "status": {
+     "$eq": "A"
+    }
+   },
+   "queryHash": "BFA749E6",
+   "planCacheKey": "0E2F94AF",
+   "optimizationTimeMillis": {
+    "$numberInt": "9"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "SORT",
+    "sortPattern": {
+     "created": {
+      "$numberInt": "-1"
+     }
+    },
+    "memLimit": {
+     "$numberInt": "104857600"
+    },
+    "limitAmount": {
+     "$numberInt": "10"
+    },
+    "type": "simple",
+    "inputStage": {
+     "stage": "FETCH",
+     "inputStage": {
+      "stage": "IXSCAN",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"A\", \"A\"]"
+       ]
+      }
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "stage": "SORT",
+     "sortPattern": {
+      "created": {
+       "$numberInt": "-1"
+      }
+     },
+     "memLimit": {
+      "$numberInt": "104857600"
+     },
+     "limitAmount": {
+      "$numberInt": "10"
+     },
+     "type": "simple",
+     "inputStage": {
+      "stage": "FETCH",
+      "inputStage": {
+       "stage": "IXSCAN",
+       "keyPattern": {
+        "status": {
+         "$numberInt": "1"
+        },
+        "qty": {
+         "$numberInt": "1"
+        }
+       },
+       "indexName": "status_1_qty_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "status": [],
+        "qty": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": {
+        "$numberInt": "2"
+       },
+       "direction": "forward",
+       "indexBounds": {
+        "status": [
+         "[\"A\", \"A\"]"
+        ],
+        "qty": [
+         "[MinKey, MaxKey]"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "10"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "9"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "5000"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "5000"
+   },
+   "executionStages": {
+    "stage": "SORT",
+    "nReturned": {
+     "$numberInt": "10"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "5012"
+    },
+    "advanced": {
+     "$numberInt": "10"
+    },
+    "needTime": {
+     "$numberInt": "5001"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "10"
+    },
+    "restoreState": {
+     "$numberInt": "10"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "sortPattern": {
+     "created": {
+      "$numberInt": "-1"
+     }
+    },
+    "memLimit": {
+     "$numberInt": "104857600"
+    },
+    "limitAmount": {
+     "$numberInt": "10"
+    },
+    "type": "simple",
+    "totalDataSizeSorted": {
+     "$numberInt": "1560"
+    },
+    "usedDisk": false,
+    "spills": {
+     "$numberInt": "0"
+    },
+    "spilledDataStorageSize": {
+     "$numberInt": "0"
+    },
+    "inputStage": {
+     "stage": "FETCH",
+     "nReturned": {
+      "$numberInt": "5000"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "5001"
+     },
+     "advanced": {
+      "$numberInt": "5000"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "10"
+     },
+     "restoreState": {
+      "$numberInt": "10"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "docsExamined": {
+      "$numberInt": "5000"
+     },
+     "alreadyHasObj": {
+      "$numberInt": "0"
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": {
+       "$numberInt": "5000"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "5001"
+      },
+      "advanced": {
+       "$numberInt": "5000"
+      },
+      "needTime": {
+       "$numberInt": "0"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "10"
+      },
+      "restoreState": {
+       "$numberInt": "10"
+      },
+      "isEOF": {
+       "$numberInt": "1"
+      },
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"A\", \"A\"]"
+       ]
+      },
+      "keysExamined": {
+       "$numberInt": "5000"
+      },
+      "seeks": {
+       "$numberInt": "1"
+      },
+      "dupsTested": {
+       "$numberInt": "0"
+      },
+      "dupsDropped": {
+       "$numberInt": "0"
+      }
+     }
+    }
+   }
+  },
+  "command": {
+   "find": "orders",
+   "filter": {
+    "status": "A"
+   },
+   "sort": {
+    "created": {
+     "$numberInt": "-1"
+    }
+   },
+   "limit": {
+    "$numberInt": "10"
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "id": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "_id": {
+     "$eq": {
+      "$oid": "6af0bfd8319937a645139a40"
+     }
+    }
+   },
+   "queryHash": "869CED4F",
+   "planCacheKey": "333C0A17",
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "IDHACK"
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "1"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "0"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "1"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "1"
+   },
+   "executionStages": {
+    "stage": "IDHACK",
+    "nReturned": {
+     "$numberInt": "1"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "2"
+    },
+    "advanced": {
+     "$numberInt": "1"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "keysExamined": {
+     "$numberInt": "1"
+    },
+    "docsExamined": {
+     "$numberInt": "1"
+    }
+   }
+  },
+  "command": {
+   "find": "orders",
+   "filter": {
+    "_id": {
+     "$oid": "6af0bfd8319937a645139a40"
+    }
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "covered": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "status": {
+     "$eq": "B"
+    }
+   },
+   "queryHash": "CE0C8B8B",
+   "planCacheKey": "DC004AA9",
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "PROJECTION_COVERED",
+    "transformBy": {
+     "_id": {
+      "$numberInt": "0"
+     },
+     "status": {
+      "$numberInt": "1"
+     }
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "status": [
+       "[\"B\", \"B\"]"
+      ]
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "stage": "PROJECTION_COVERED",
+     "transformBy": {
+      "_id": {
+       "$numberInt": "0"
+      },
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1_qty_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": [],
+       "qty": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"B\", \"B\"]"
+       ],
+       "qty": [
+        "[MinKey, MaxKey]"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "5000"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "2"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "5000"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "0"
+   },
+   "executionStages": {
+    "stage": "PROJECTION_COVERED",
+    "nReturned": {
+     "$numberInt": "5000"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "5001"
+    },
+    "advanced": {
+     "$numberInt": "5000"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "5"
+    },
+    "restoreState": {
+     "$numberInt": "5"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "transformBy": {
+     "_id": {
+      "$numberInt": "0"
+     },
+     "status": {
+      "$numberInt": "1"
+     }
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "nReturned": {
+      "$numberInt": "5000"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "5001"
+     },
+     "advanced": {
+      "$numberInt": "5000"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "5"
+     },
+     "restoreState": {
+      "$numberInt": "5"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "status": [
+       "[\"B\", \"B\"]"
+      ]
+     },
+     "keysExamined": {
+      "$numberInt": "5000"
+     },
+     "seeks": {
+      "$numberInt": "1"
+     },
+     "dupsTested": {
+      "$numberInt": "0"
+     },
+     "dupsDropped": {
+      "$numberInt": "0"
+     }
+    }
+   }
+  },
+  "command": {
+   "find": "orders",
+   "filter": {
+    "status": "B"
+   },
+   "projection": {
+    "_id": {
+     "$numberInt": "0"
+    },
+    "status": {
+     "$numberInt": "1"
+    }
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "fetchfilter": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "$and": [
+     {
+      "cust": {
+       "$eq": "c1"
+      }
+     },
+     {
+      "status": {
+       "$eq": "A"
+      }
+     }
+    ]
+   },
+   "queryHash": "FDC14872",
+   "planCacheKey": "97413FBF",
+   "optimizationTimeMillis": {
+    "$numberInt": "7"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "FETCH",
+    "filter": {
+     "cust": {
+      "$eq": "c1"
+     }
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "status": [
+       "[\"A\", \"A\"]"
+      ]
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "stage": "FETCH",
+     "filter": {
+      "cust": {
+       "$eq": "c1"
+      }
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "keyPattern": {
+       "status": {
+        "$numberInt": "1"
+       },
+       "qty": {
+        "$numberInt": "1"
+       }
+      },
+      "indexName": "status_1_qty_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "status": [],
+       "qty": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": {
+       "$numberInt": "2"
+      },
+      "direction": "forward",
+      "indexBounds": {
+       "status": [
+        "[\"A\", \"A\"]"
+       ],
+       "qty": [
+        "[MinKey, MaxKey]"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "0"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "7"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "5000"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "5000"
+   },
+   "executionStages": {
+    "stage": "FETCH",
+    "filter": {
+     "cust": {
+      "$eq": "c1"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "0"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "5002"
+    },
+    "advanced": {
+     "$numberInt": "0"
+    },
+    "needTime": {
+     "$numberInt": "5000"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "10"
+    },
+    "restoreState": {
+     "$numberInt": "10"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "docsExamined": {
+     "$numberInt": "5000"
+    },
+    "alreadyHasObj": {
+     "$numberInt": "0"
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "nReturned": {
+      "$numberInt": "5000"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "5001"
+     },
+     "advanced": {
+      "$numberInt": "5000"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "10"
+     },
+     "restoreState": {
+      "$numberInt": "10"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "status": [
+       "[\"A\", \"A\"]"
+      ]
+     },
+     "keysExamined": {
+      "$numberInt": "5000"
+     },
+     "seeks": {
+      "$numberInt": "1"
+     },
+     "dupsTested": {
+      "$numberInt": "0"
+     },
+     "dupsDropped": {
+      "$numberInt": "0"
+     }
+    }
+   },
+   "allPlansExecution": [
+    {
+     "nReturned": {
+      "$numberInt": "0"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "totalKeysExamined": {
+      "$numberInt": "5000"
+     },
+     "totalDocsExamined": {
+      "$numberInt": "5000"
+     },
+     "score": {
+      "$numberDouble": "2.0002"
+     },
+     "executionStages": {
+      "stage": "FETCH",
+      "filter": {
+       "cust": {
+        "$eq": "c1"
+       }
+      },
+      "nReturned": {
+       "$numberInt": "0"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "5001"
+      },
+      "advanced": {
+       "$numberInt": "0"
+      },
+      "needTime": {
+       "$numberInt": "5000"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "10"
+      },
+      "restoreState": {
+       "$numberInt": "10"
+      },
+      "isEOF": {
+       "$numberInt": "1"
+      },
+      "docsExamined": {
+       "$numberInt": "5000"
+      },
+      "alreadyHasObj": {
+       "$numberInt": "0"
+      },
+      "inputStage": {
+       "stage": "IXSCAN",
+       "nReturned": {
+        "$numberInt": "5000"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "works": {
+        "$numberInt": "5001"
+       },
+       "advanced": {
+        "$numberInt": "5000"
+       },
+       "needTime": {
+        "$numberInt": "0"
+       },
+       "needYield": {
+        "$numberInt": "0"
+       },
+       "saveState": {
+        "$numberInt": "10"
+       },
+       "restoreState": {
+        "$numberInt": "10"
+       },
+       "isEOF": {
+        "$numberInt": "1"
+       },
+       "keyPattern": {
+        "status": {
+         "$numberInt": "1"
+        }
+       },
+       "indexName": "status_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "status": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": {
+        "$numberInt": "2"
+       },
+       "direction": "forward",
+       "indexBounds": {
+        "status": [
+         "[\"A\", \"A\"]"
+        ]
+       },
+       "keysExamined": {
+        "$numberInt": "5000"
+       },
+       "seeks": {
+        "$numberInt": "1"
+       },
+       "dupsTested": {
+        "$numberInt": "0"
+       },
+       "dupsDropped": {
+        "$numberInt": "0"
+       }
+      }
+     }
+    },
+    {
+     "nReturned": {
+      "$numberInt": "0"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "totalKeysExamined": {
+      "$numberInt": "5000"
+     },
+     "totalDocsExamined": {
+      "$numberInt": "5000"
+     },
+     "score": {
+      "$numberDouble": "2.0002"
+     },
+     "executionStages": {
+      "stage": "FETCH",
+      "filter": {
+       "cust": {
+        "$eq": "c1"
+       }
+      },
+      "nReturned": {
+       "$numberInt": "0"
+      },
+      "executionTimeMillisEstimate": {
+       "$numberInt": "0"
+      },
+      "works": {
+       "$numberInt": "5001"
+      },
+      "advanced": {
+       "$numberInt": "0"
+      },
+      "needTime": {
+       "$numberInt": "5000"
+      },
+      "needYield": {
+       "$numberInt": "0"
+      },
+      "saveState": {
+       "$numberInt": "11"
+      },
+      "restoreState": {
+       "$numberInt": "10"
+      },
+      "isEOF": {
+       "$numberInt": "1"
+      },
+      "docsExamined": {
+       "$numberInt": "5000"
+      },
+      "alreadyHasObj": {
+       "$numberInt": "0"
+      },
+      "inputStage": {
+       "stage": "IXSCAN",
+       "nReturned": {
+        "$numberInt": "5000"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "works": {
+        "$numberInt": "5001"
+       },
+       "advanced": {
+        "$numberInt": "5000"
+       },
+       "needTime": {
+        "$numberInt": "0"
+       },
+       "needYield": {
+        "$numberInt": "0"
+       },
+       "saveState": {
+        "$numberInt": "11"
+       },
+       "restoreState": {
+        "$numberInt": "10"
+       },
+       "isEOF": {
+        "$numberInt": "1"
+       },
+       "keyPattern": {
+        "status": {
+         "$numberInt": "1"
+        },
+        "qty": {
+         "$numberInt": "1"
+        }
+       },
+       "indexName": "status_1_qty_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "status": [],
+        "qty": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": {
+        "$numberInt": "2"
+       },
+       "direction": "forward",
+       "indexBounds": {
+        "status": [
+         "[\"A\", \"A\"]"
+        ],
+        "qty": [
+         "[MinKey, MaxKey]"
+        ]
+       },
+       "keysExamined": {
+        "$numberInt": "5000"
+       },
+       "seeks": {
+        "$numberInt": "1"
+       },
+       "dupsTested": {
+        "$numberInt": "0"
+       },
+       "dupsDropped": {
+        "$numberInt": "0"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "command": {
+   "find": "orders",
+   "filter": {
+    "status": "A",
+    "cust": "c1"
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "good": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "sku": {
+     "$eq": "s5"
+    }
+   },
+   "queryHash": "152D7AB7",
+   "planCacheKey": "2806A1B6",
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "FETCH",
+    "inputStage": {
+     "stage": "IXSCAN",
+     "keyPattern": {
+      "sku": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "sku_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "sku": []
+     },
+     "isUnique": true,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "sku": [
+       "[\"s5\", \"s5\"]"
+      ]
+     }
+    }
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "1"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "0"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "1"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "1"
+   },
+   "executionStages": {
+    "stage": "FETCH",
+    "nReturned": {
+     "$numberInt": "1"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "2"
+    },
+    "advanced": {
+     "$numberInt": "1"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "docsExamined": {
+     "$numberInt": "1"
+    },
+    "alreadyHasObj": {
+     "$numberInt": "0"
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "nReturned": {
+      "$numberInt": "1"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "2"
+     },
+     "advanced": {
+      "$numberInt": "1"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "0"
+     },
+     "restoreState": {
+      "$numberInt": "0"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "keyPattern": {
+      "sku": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "sku_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "sku": []
+     },
+     "isUnique": true,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "sku": [
+       "[\"s5\", \"s5\"]"
+      ]
+     },
+     "keysExamined": {
+      "$numberInt": "1"
+     },
+     "seeks": {
+      "$numberInt": "1"
+     },
+     "dupsTested": {
+      "$numberInt": "0"
+     },
+     "dupsDropped": {
+      "$numberInt": "0"
+     }
+    }
+   }
+  },
+  "command": {
+   "find": "orders",
+   "filter": {
+    "sku": "s5"
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "group": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "shop.orders",
+      "indexFilterSet": false,
+      "parsedQuery": {
+       "status": {
+        "$eq": "A"
+       }
+      },
+      "queryHash": "C9801678",
+      "planCacheKey": "3EC42763",
+      "optimizationTimeMillis": {
+       "$numberInt": "0"
+      },
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "winningPlan": {
+       "stage": "PROJECTION_SIMPLE",
+       "transformBy": {
+        "cust": {
+         "$numberInt": "1"
+        },
+        "_id": {
+         "$numberInt": "0"
+        }
+       },
+       "inputStage": {
+        "stage": "FETCH",
+        "inputStage": {
+         "stage": "IXSCAN",
+         "keyPattern": {
+          "status": {
+           "$numberInt": "1"
+          }
+         },
+         "indexName": "status_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "status": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": {
+          "$numberInt": "2"
+         },
+         "direction": "forward",
+         "indexBounds": {
+          "status": [
+           "[\"A\", \"A\"]"
+          ]
+         }
+        }
+       }
+      },
+      "rejectedPlans": [
+       {
+        "stage": "PROJECTION_SIMPLE",
+        "transformBy": {
+         "cust": {
+          "$numberInt": "1"
+         },
+         "_id": {
+          "$numberInt": "0"
+         }
+        },
+        "inputStage": {
+         "stage": "FETCH",
+         "inputStage": {
+          "stage": "IXSCAN",
+          "keyPattern": {
+           "status": {
+            "$numberInt": "1"
+           },
+           "qty": {
+            "$numberInt": "1"
+           }
+          },
+          "indexName": "status_1_qty_1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+           "status": [],
+           "qty": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": {
+           "$numberInt": "2"
+          },
+          "direction": "forward",
+          "indexBounds": {
+           "status": [
+            "[\"A\", \"A\"]"
+           ],
+           "qty": [
+            "[MinKey, MaxKey]"
+           ]
+          }
+         }
+        }
+       }
+      ]
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": {
+       "$numberInt": "5000"
+      },
+      "executionTimeMillis": {
+       "$numberInt": "5"
+      },
+      "totalKeysExamined": {
+       "$numberInt": "5000"
+      },
+      "totalDocsExamined": {
+       "$numberInt": "5000"
+      },
+      "executionStages": {
+       "stage": "PROJECTION_SIMPLE",
+       "nReturned": {
+        "$numberInt": "5000"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "works": {
+        "$numberInt": "5001"
+       },
+       "advanced": {
+        "$numberInt": "5000"
+       },
+       "needTime": {
+        "$numberInt": "0"
+       },
+       "needYield": {
+        "$numberInt": "0"
+       },
+       "saveState": {
+        "$numberInt": "6"
+       },
+       "restoreState": {
+        "$numberInt": "6"
+       },
+       "isEOF": {
+        "$numberInt": "1"
+       },
+       "transformBy": {
+        "cust": {
+         "$numberInt": "1"
+        },
+        "_id": {
+         "$numberInt": "0"
+        }
+       },
+       "inputStage": {
+        "stage": "FETCH",
+        "nReturned": {
+         "$numberInt": "5000"
+        },
+        "executionTimeMillisEstimate": {
+         "$numberInt": "0"
+        },
+        "works": {
+         "$numberInt": "5001"
+        },
+        "advanced": {
+         "$numberInt": "5000"
+        },
+        "needTime": {
+         "$numberInt": "0"
+        },
+        "needYield": {
+         "$numberInt": "0"
+        },
+        "saveState": {
+         "$numberInt": "6"
+        },
+        "restoreState": {
+         "$numberInt": "6"
+        },
+        "isEOF": {
+         "$numberInt": "1"
+        },
+        "docsExamined": {
+         "$numberInt": "5000"
+        },
+        "alreadyHasObj": {
+         "$numberInt": "0"
+        },
+        "inputStage": {
+         "stage": "IXSCAN",
+         "nReturned": {
+          "$numberInt": "5000"
+         },
+         "executionTimeMillisEstimate": {
+          "$numberInt": "0"
+         },
+         "works": {
+          "$numberInt": "5001"
+         },
+         "advanced": {
+          "$numberInt": "5000"
+         },
+         "needTime": {
+          "$numberInt": "0"
+         },
+         "needYield": {
+          "$numberInt": "0"
+         },
+         "saveState": {
+          "$numberInt": "6"
+         },
+         "restoreState": {
+          "$numberInt": "6"
+         },
+         "isEOF": {
+          "$numberInt": "1"
+         },
+         "keyPattern": {
+          "status": {
+           "$numberInt": "1"
+          }
+         },
+         "indexName": "status_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "status": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": {
+          "$numberInt": "2"
+         },
+         "direction": "forward",
+         "indexBounds": {
+          "status": [
+           "[\"A\", \"A\"]"
+          ]
+         },
+         "keysExamined": {
+          "$numberInt": "5000"
+         },
+         "seeks": {
+          "$numberInt": "1"
+         },
+         "dupsTested": {
+          "$numberInt": "0"
+         },
+         "dupsDropped": {
+          "$numberInt": "0"
+         }
+        }
+       }
+      }
+     }
+    },
+    "nReturned": {
+     "$numberLong": "5000"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberLong": "3"
+    }
+   },
+   {
+    "$group": {
+     "_id": "$cust",
+     "n": {
+      "$sum": {
+       "$const": {
+        "$numberInt": "1"
+       }
+      }
+     }
+    },
+    "maxAccumulatorMemoryUsageBytes": {
+     "n": {
+      "$numberLong": "24000"
+     }
+    },
+    "totalOutputDataSizeBytes": {
+     "$numberLong": "61250"
+    },
+    "usedDisk": false,
+    "spills": {
+     "$numberLong": "0"
+    },
+    "spilledDataStorageSize": {
+     "$numberLong": "0"
+    },
+    "numBytesSpilledEstimate": {
+     "$numberLong": "0"
+    },
+    "spilledRecords": {
+     "$numberLong": "0"
+    },
+    "nReturned": {
+     "$numberLong": "250"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberLong": "3"
+    }
+   }
+  ],
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "command": {
+   "aggregate": "orders",
+   "pipeline": [
+    {
+     "$match": {
+      "status": "A"
+     }
+    },
+    {
+     "$group": {
+      "_id": "$cust",
+      "n": {
+       "$sum": {
+        "$numberInt": "1"
+       }
+      }
+     }
+    }
+   ],
+   "cursor": {},
+   "$db": "shop"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "lookup": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "shop.orders",
+      "indexFilterSet": false,
+      "parsedQuery": {
+       "status": {
+        "$eq": "C"
+       }
+      },
+      "queryHash": "4B6FAB47",
+      "planCacheKey": "10C35D2C",
+      "optimizationTimeMillis": {
+       "$numberInt": "0"
+      },
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "winningPlan": {
+       "stage": "LIMIT",
+       "limitAmount": {
+        "$numberInt": "20"
+       },
+       "inputStage": {
+        "stage": "FETCH",
+        "inputStage": {
+         "stage": "IXSCAN",
+         "keyPattern": {
+          "status": {
+           "$numberInt": "1"
+          }
+         },
+         "indexName": "status_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "status": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": {
+          "$numberInt": "2"
+         },
+         "direction": "forward",
+         "indexBounds": {
+          "status": [
+           "[\"C\", \"C\"]"
+          ]
+         }
+        }
+       }
+      },
+      "rejectedPlans": [
+       {
+        "stage": "LIMIT",
+        "limitAmount": {
+         "$numberInt": "20"
+        },
+        "inputStage": {
+         "stage": "FETCH",
+         "inputStage": {
+          "stage": "IXSCAN",
+          "keyPattern": {
+           "status": {
+            "$numberInt": "1"
+           },
+           "qty": {
+            "$numberInt": "1"
+           }
+          },
+          "indexName": "status_1_qty_1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+           "status": [],
+           "qty": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": {
+           "$numberInt": "2"
+          },
+          "direction": "forward",
+          "indexBounds": {
+           "status": [
+            "[\"C\", \"C\"]"
+           ],
+           "qty": [
+            "[MinKey, MaxKey]"
+           ]
+          }
+         }
+        }
+       }
+      ]
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": {
+       "$numberInt": "20"
+      },
+      "executionTimeMillis": {
+       "$numberInt": "0"
+      },
+      "totalKeysExamined": {
+       "$numberInt": "20"
+      },
+      "totalDocsExamined": {
+       "$numberInt": "20"
+      },
+      "executionStages": {
+       "stage": "LIMIT",
+       "nReturned": {
+        "$numberInt": "20"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "works": {
+        "$numberInt": "21"
+       },
+       "advanced": {
+        "$numberInt": "20"
+       },
+       "needTime": {
+        "$numberInt": "0"
+       },
+       "needYield": {
+        "$numberInt": "0"
+       },
+       "saveState": {
+        "$numberInt": "1"
+       },
+       "restoreState": {
+        "$numberInt": "1"
+       },
+       "isEOF": {
+        "$numberInt": "1"
+       },
+       "limitAmount": {
+        "$numberInt": "20"
+       },
+       "inputStage": {
+        "stage": "FETCH",
+        "nReturned": {
+         "$numberInt": "20"
+        },
+        "executionTimeMillisEstimate": {
+         "$numberInt": "0"
+        },
+        "works": {
+         "$numberInt": "20"
+        },
+        "advanced": {
+         "$numberInt": "20"
+        },
+        "needTime": {
+         "$numberInt": "0"
+        },
+        "needYield": {
+         "$numberInt": "0"
+        },
+        "saveState": {
+         "$numberInt": "1"
+        },
+        "restoreState": {
+         "$numberInt": "1"
+        },
+        "isEOF": {
+         "$numberInt": "0"
+        },
+        "docsExamined": {
+         "$numberInt": "20"
+        },
+        "alreadyHasObj": {
+         "$numberInt": "0"
+        },
+        "inputStage": {
+         "stage": "IXSCAN",
+         "nReturned": {
+          "$numberInt": "20"
+         },
+         "executionTimeMillisEstimate": {
+          "$numberInt": "0"
+         },
+         "works": {
+          "$numberInt": "20"
+         },
+         "advanced": {
+          "$numberInt": "20"
+         },
+         "needTime": {
+          "$numberInt": "0"
+         },
+         "needYield": {
+          "$numberInt": "0"
+         },
+         "saveState": {
+          "$numberInt": "1"
+         },
+         "restoreState": {
+          "$numberInt": "1"
+         },
+         "isEOF": {
+          "$numberInt": "0"
+         },
+         "keyPattern": {
+          "status": {
+           "$numberInt": "1"
+          }
+         },
+         "indexName": "status_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "status": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": {
+          "$numberInt": "2"
+         },
+         "direction": "forward",
+         "indexBounds": {
+          "status": [
+           "[\"C\", \"C\"]"
+          ]
+         },
+         "keysExamined": {
+          "$numberInt": "20"
+         },
+         "seeks": {
+          "$numberInt": "1"
+         },
+         "dupsTested": {
+          "$numberInt": "0"
+         },
+         "dupsDropped": {
+          "$numberInt": "0"
+         }
+        }
+       }
+      }
+     }
+    },
+    "nReturned": {
+     "$numberLong": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberLong": "0"
+    }
+   },
+   {
+    "$lookup": {
+     "from": "users",
+     "as": "u",
+     "localField": "cust",
+     "foreignField": "name"
+    },
+    "totalDocsExamined": {
+     "$numberLong": "40"
+    },
+    "totalKeysExamined": {
+     "$numberLong": "0"
+    },
+    "collectionScans": {
+     "$numberLong": "20"
+    },
+    "indexesUsed": [],
+    "nReturned": {
+     "$numberLong": "20"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberLong": "1"
+    }
+   }
+  ],
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "command": {
+   "aggregate": "orders",
+   "pipeline": [
+    {
+     "$match": {
+      "status": "C"
+     }
+    },
+    {
+     "$limit": {
+      "$numberInt": "20"
+     }
+    },
+    {
+     "$lookup": {
+      "from": "users",
+      "localField": "cust",
+      "foreignField": "name",
+      "as": "u"
+     }
+    }
+   ],
+   "cursor": {},
+   "$db": "shop"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "count": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "status": {
+     "$eq": "A"
+    }
+   },
+   "queryHash": "4B6FAB47",
+   "planCacheKey": "10C35D2C",
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "COUNT",
+    "inputStage": {
+     "stage": "COUNT_SCAN",
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "indexBounds": {
+      "startKey": {
+       "status": "A"
+      },
+      "startKeyInclusive": true,
+      "endKey": {
+       "status": "A"
+      },
+      "endKeyInclusive": true
+     }
+    }
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "0"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "1"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "5001"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "0"
+   },
+   "executionStages": {
+    "stage": "COUNT",
+    "nReturned": {
+     "$numberInt": "0"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "5001"
+    },
+    "advanced": {
+     "$numberInt": "0"
+    },
+    "needTime": {
+     "$numberInt": "5000"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "5"
+    },
+    "restoreState": {
+     "$numberInt": "5"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "nCounted": {
+     "$numberInt": "5000"
+    },
+    "nSkipped": {
+     "$numberInt": "0"
+    },
+    "inputStage": {
+     "stage": "COUNT_SCAN",
+     "nReturned": {
+      "$numberInt": "5000"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "5001"
+     },
+     "advanced": {
+      "$numberInt": "5000"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "5"
+     },
+     "restoreState": {
+      "$numberInt": "5"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "keysExamined": {
+      "$numberInt": "5001"
+     },
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "indexBounds": {
+      "startKey": {
+       "status": "A"
+      },
+      "startKeyInclusive": true,
+      "endKey": {
+       "status": "A"
+      },
+      "endKeyInclusive": true
+     }
+    }
+   }
+  },
+  "command": {
+   "count": "orders",
+   "query": {
+    "status": "A"
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "distinct": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {},
+   "queryHash": "618EBE31",
+   "planCacheKey": "618EBE31",
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "PROJECTION_COVERED",
+    "transformBy": {},
+    "inputStage": {
+     "stage": "DISTINCT_SCAN",
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "status": [
+       "[MinKey, MaxKey]"
+      ]
+     }
+    }
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "4"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "0"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "4"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "0"
+   },
+   "executionStages": {
+    "stage": "PROJECTION_COVERED",
+    "nReturned": {
+     "$numberInt": "4"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "5"
+    },
+    "advanced": {
+     "$numberInt": "4"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "transformBy": {},
+    "inputStage": {
+     "stage": "DISTINCT_SCAN",
+     "nReturned": {
+      "$numberInt": "4"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "5"
+     },
+     "advanced": {
+      "$numberInt": "4"
+     },
+     "needTime": {
+      "$numberInt": "0"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "0"
+     },
+     "restoreState": {
+      "$numberInt": "0"
+     },
+     "isEOF": {
+      "$numberInt": "1"
+     },
+     "keyPattern": {
+      "status": {
+       "$numberInt": "1"
+      }
+     },
+     "indexName": "status_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "status": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": {
+      "$numberInt": "2"
+     },
+     "direction": "forward",
+     "indexBounds": {
+      "status": [
+       "[MinKey, MaxKey]"
+      ]
+     },
+     "keysExamined": {
+      "$numberInt": "4"
+     }
+    }
+   }
+  },
+  "command": {
+   "distinct": "orders",
+   "key": "status",
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "update": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "cust": {
+     "$eq": "c5"
+    }
+   },
+   "queryHash": "48100F51",
+   "planCacheKey": "48100F51",
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "UPDATE",
+    "inputStage": {
+     "stage": "COLLSCAN",
+     "filter": {
+      "cust": {
+       "$eq": "c5"
+      }
+     },
+     "direction": "forward"
+    }
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": {
+    "$numberInt": "0"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "0"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "0"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "6"
+   },
+   "executionStages": {
+    "stage": "UPDATE",
+    "nReturned": {
+     "$numberInt": "0"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "0"
+    },
+    "works": {
+     "$numberInt": "7"
+    },
+    "advanced": {
+     "$numberInt": "0"
+    },
+    "needTime": {
+     "$numberInt": "6"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "0"
+    },
+    "restoreState": {
+     "$numberInt": "0"
+    },
+    "isEOF": {
+     "$numberInt": "1"
+    },
+    "nMatched": {
+     "$numberInt": "1"
+    },
+    "nWouldModify": {
+     "$numberInt": "1"
+    },
+    "nWouldUpsert": {
+     "$numberInt": "0"
+    },
+    "inputStage": {
+     "stage": "COLLSCAN",
+     "filter": {
+      "cust": {
+       "$eq": "c5"
+      }
+     },
+     "nReturned": {
+      "$numberInt": "1"
+     },
+     "executionTimeMillisEstimate": {
+      "$numberInt": "0"
+     },
+     "works": {
+      "$numberInt": "6"
+     },
+     "advanced": {
+      "$numberInt": "1"
+     },
+     "needTime": {
+      "$numberInt": "5"
+     },
+     "needYield": {
+      "$numberInt": "0"
+     },
+     "saveState": {
+      "$numberInt": "1"
+     },
+     "restoreState": {
+      "$numberInt": "1"
+     },
+     "isEOF": {
+      "$numberInt": "0"
+     },
+     "direction": "forward",
+     "docsExamined": {
+      "$numberInt": "6"
+     }
+    }
+   }
+  },
+  "command": {
+   "update": "orders",
+   "updates": [
+    {
+     "q": {
+      "cust": "c5"
+     },
+     "u": {
+      "$set": {
+       "x": {
+        "$numberInt": "1"
+       }
+      }
+     }
+    }
+   ],
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "out_planner": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "shop.orders",
+      "indexFilterSet": false,
+      "parsedQuery": {
+       "status": {
+        "$eq": "D"
+       }
+      },
+      "queryHash": "4B6FAB47",
+      "planCacheKey": "10C35D2C",
+      "optimizationTimeMillis": {
+       "$numberInt": "0"
+      },
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "winningPlan": {
+       "stage": "FETCH",
+       "inputStage": {
+        "stage": "IXSCAN",
+        "keyPattern": {
+         "status": {
+          "$numberInt": "1"
+         }
+        },
+        "indexName": "status_1",
+        "isMultiKey": false,
+        "multiKeyPaths": {
+         "status": []
+        },
+        "isUnique": false,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": {
+         "$numberInt": "2"
+        },
+        "direction": "forward",
+        "indexBounds": {
+         "status": [
+          "[\"D\", \"D\"]"
+         ]
+        }
+       }
+      },
+      "rejectedPlans": [
+       {
+        "stage": "FETCH",
+        "inputStage": {
+         "stage": "IXSCAN",
+         "keyPattern": {
+          "status": {
+           "$numberInt": "1"
+          },
+          "qty": {
+           "$numberInt": "1"
+          }
+         },
+         "indexName": "status_1_qty_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "status": [],
+          "qty": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": {
+          "$numberInt": "2"
+         },
+         "direction": "forward",
+         "indexBounds": {
+          "status": [
+           "[\"D\", \"D\"]"
+          ],
+          "qty": [
+           "[MinKey, MaxKey]"
+          ]
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   {
+    "$out": {
+     "coll": "tmp_out",
+     "db": "shop"
+    }
+   }
+  ],
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "command": {
+   "aggregate": "orders",
+   "pipeline": [
+    {
+     "$match": {
+      "status": "D"
+     }
+    },
+    {
+     "$out": "tmp_out"
+    }
+   ],
+   "cursor": {},
+   "$db": "shop"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "out_exec": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "shop.orders",
+      "indexFilterSet": false,
+      "parsedQuery": {
+       "status": {
+        "$eq": "D"
+       }
+      },
+      "queryHash": "4B6FAB47",
+      "planCacheKey": "10C35D2C",
+      "optimizationTimeMillis": {
+       "$numberInt": "0"
+      },
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "winningPlan": {
+       "stage": "FETCH",
+       "inputStage": {
+        "stage": "IXSCAN",
+        "keyPattern": {
+         "status": {
+          "$numberInt": "1"
+         }
+        },
+        "indexName": "status_1",
+        "isMultiKey": false,
+        "multiKeyPaths": {
+         "status": []
+        },
+        "isUnique": false,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": {
+         "$numberInt": "2"
+        },
+        "direction": "forward",
+        "indexBounds": {
+         "status": [
+          "[\"D\", \"D\"]"
+         ]
+        }
+       }
+      },
+      "rejectedPlans": [
+       {
+        "stage": "FETCH",
+        "inputStage": {
+         "stage": "IXSCAN",
+         "keyPattern": {
+          "status": {
+           "$numberInt": "1"
+          },
+          "qty": {
+           "$numberInt": "1"
+          }
+         },
+         "indexName": "status_1_qty_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "status": [],
+          "qty": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": {
+          "$numberInt": "2"
+         },
+         "direction": "forward",
+         "indexBounds": {
+          "status": [
+           "[\"D\", \"D\"]"
+          ],
+          "qty": [
+           "[MinKey, MaxKey]"
+          ]
+         }
+        }
+       }
+      ]
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": {
+       "$numberInt": "5000"
+      },
+      "executionTimeMillis": {
+       "$numberInt": "3"
+      },
+      "totalKeysExamined": {
+       "$numberInt": "5000"
+      },
+      "totalDocsExamined": {
+       "$numberInt": "5000"
+      },
+      "executionStages": {
+       "stage": "FETCH",
+       "nReturned": {
+        "$numberInt": "5000"
+       },
+       "executionTimeMillisEstimate": {
+        "$numberInt": "0"
+       },
+       "works": {
+        "$numberInt": "5001"
+       },
+       "advanced": {
+        "$numberInt": "5000"
+       },
+       "needTime": {
+        "$numberInt": "0"
+       },
+       "needYield": {
+        "$numberInt": "0"
+       },
+       "saveState": {
+        "$numberInt": "6"
+       },
+       "restoreState": {
+        "$numberInt": "6"
+       },
+       "isEOF": {
+        "$numberInt": "1"
+       },
+       "docsExamined": {
+        "$numberInt": "5000"
+       },
+       "alreadyHasObj": {
+        "$numberInt": "0"
+       },
+       "inputStage": {
+        "stage": "IXSCAN",
+        "nReturned": {
+         "$numberInt": "5000"
+        },
+        "executionTimeMillisEstimate": {
+         "$numberInt": "0"
+        },
+        "works": {
+         "$numberInt": "5001"
+        },
+        "advanced": {
+         "$numberInt": "5000"
+        },
+        "needTime": {
+         "$numberInt": "0"
+        },
+        "needYield": {
+         "$numberInt": "0"
+        },
+        "saveState": {
+         "$numberInt": "6"
+        },
+        "restoreState": {
+         "$numberInt": "6"
+        },
+        "isEOF": {
+         "$numberInt": "1"
+        },
+        "keyPattern": {
+         "status": {
+          "$numberInt": "1"
+         }
+        },
+        "indexName": "status_1",
+        "isMultiKey": false,
+        "multiKeyPaths": {
+         "status": []
+        },
+        "isUnique": false,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": {
+         "$numberInt": "2"
+        },
+        "direction": "forward",
+        "indexBounds": {
+         "status": [
+          "[\"D\", \"D\"]"
+         ]
+        },
+        "keysExamined": {
+         "$numberInt": "5000"
+        },
+        "seeks": {
+         "$numberInt": "1"
+        },
+        "dupsTested": {
+         "$numberInt": "0"
+        },
+        "dupsDropped": {
+         "$numberInt": "0"
+        }
+       }
+      }
+     }
+    },
+    "nReturned": {
+     "$numberLong": "5000"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberLong": "3"
+    }
+   },
+   {
+    "$out": {
+     "coll": "tmp_out",
+     "db": "shop"
+    },
+    "nReturned": {
+     "$numberLong": "0"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberLong": "3"
+    }
+   }
+  ],
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "command": {
+   "aggregate": "orders",
+   "pipeline": [
+    {
+     "$match": {
+      "status": "D"
+     }
+    },
+    {
+     "$out": "tmp_out"
+    }
+   ],
+   "cursor": {},
+   "$db": "shop"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ },
+ "timeout": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "shop.orders",
+   "indexFilterSet": false,
+   "parsedQuery": {
+    "$where": {
+     "$code": "sleep(5); return true"
+    }
+   },
+   "optimizationTimeMillis": {
+    "$numberInt": "0"
+   },
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "winningPlan": {
+    "stage": "COLLSCAN",
+    "filter": {
+     "$where": {
+      "$code": "sleep(5); return true"
+     }
+    },
+    "direction": "forward"
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": false,
+   "errorMessage": "operation exceeded time limit",
+   "errorCode": {
+    "$numberInt": "50"
+   },
+   "nReturned": {
+    "$numberInt": "28"
+   },
+   "executionTimeMillis": {
+    "$numberInt": "200"
+   },
+   "totalKeysExamined": {
+    "$numberInt": "0"
+   },
+   "totalDocsExamined": {
+    "$numberInt": "29"
+   },
+   "failed": true,
+   "executionStages": {
+    "stage": "COLLSCAN",
+    "filter": {
+     "$where": {
+      "$code": "sleep(5); return true"
+     }
+    },
+    "nReturned": {
+     "$numberInt": "28"
+    },
+    "executionTimeMillisEstimate": {
+     "$numberInt": "200"
+    },
+    "works": {
+     "$numberInt": "29"
+    },
+    "advanced": {
+     "$numberInt": "28"
+    },
+    "needTime": {
+     "$numberInt": "0"
+    },
+    "needYield": {
+     "$numberInt": "0"
+    },
+    "saveState": {
+     "$numberInt": "14"
+    },
+    "restoreState": {
+     "$numberInt": "14"
+    },
+    "failed": true,
+    "isEOF": {
+     "$numberInt": "0"
+    },
+    "direction": "forward",
+    "docsExamined": {
+     "$numberInt": "29"
+    }
+   }
+  },
+  "command": {
+   "find": "orders",
+   "filter": {
+    "$where": "sleep(5); return true"
+   },
+   "$db": "shop"
+  },
+  "serverInfo": {
+   "host": "d0d6bebdea35",
+   "port": {
+    "$numberInt": "27017"
+   },
+   "version": "7.0.45",
+   "gitVersion": "a52313e13ab55c9bddf7c3ff91dab286fa381796"
+  },
+  "ok": {
+   "$numberDouble": "1.0"
+  }
+ }
+}

@@ -273,25 +273,7 @@ func loadDocuments(navigate bool) {
 	}
 	s.DocsEpoch++
 	epoch := s.DocsEpoch
-	req := pageRequest{
-		ns:         state.Namespace{DB: s.CurrentDB, Coll: s.CurrentColl},
-		page:       s.CurrentPage,
-		pageSize:   state.PageSize,
-		filter:     s.CurrentFilter,
-		projection: s.CurrentProjection,
-		sort:       s.CurrentSort,
-		skip:       s.QuerySkip,
-		limit:      s.QueryLimit,
-		snapshot:   s.SnapshotID,
-		live:       s.LiveMode,
-	}
-	if req.live && len(req.sort) == 0 {
-		req.sort = bson.D{{Key: "_id", Value: -1}}
-	}
-	req.keyset = len(req.filter) == 0 && len(req.sort) == 0 && req.skip == 0 && req.limit == 0 && !s.NoKeyset[req.ns]
-	if req.keyset && req.page > 0 && req.page < len(s.PageStarts) {
-		req.start = s.PageStarts[req.page]
-	}
+	req := currentPageRequest()
 	countDirty := s.CountDirty
 	if countDirty {
 		// Any count still running belongs to the previous query.
@@ -322,6 +304,130 @@ func loadDocuments(navigate bool) {
 	}()
 }
 
+// currentPageRequest describes the browse list page the state asks for.
+func currentPageRequest() pageRequest {
+	s := state.S
+	req := pageRequest{
+		ns:         state.Namespace{DB: s.CurrentDB, Coll: s.CurrentColl},
+		page:       s.CurrentPage,
+		pageSize:   state.PageSize,
+		filter:     s.CurrentFilter,
+		projection: s.CurrentProjection,
+		sort:       s.CurrentSort,
+		skip:       s.QuerySkip,
+		limit:      s.QueryLimit,
+		snapshot:   s.SnapshotID,
+		live:       s.LiveMode,
+	}
+	if req.live && len(req.sort) == 0 {
+		req.sort = bson.D{{Key: "_id", Value: -1}}
+	}
+	req.keyset = len(req.filter) == 0 && len(req.sort) == 0 && req.skip == 0 && req.limit == 0 && !s.NoKeyset[req.ns]
+	if req.keyset && req.page > 0 && req.page < len(s.PageStarts) {
+		req.start = s.PageStarts[req.page]
+	}
+	return req
+}
+
+// FindSpec is a find's filter and options.
+type FindSpec struct {
+	Filter, Sort, Projection, Hint, Min bson.D
+	Skip, Limit                         int64
+}
+
+func (f FindSpec) options() *options.FindOptions {
+	o := options.Find()
+	if len(f.Sort) > 0 {
+		o.SetSort(f.Sort)
+	}
+	if len(f.Projection) > 0 {
+		o.SetProjection(f.Projection)
+	}
+	if len(f.Hint) > 0 {
+		o.SetHint(f.Hint)
+	}
+	if len(f.Min) > 0 {
+		o.SetMin(f.Min)
+	}
+	if f.Skip > 0 {
+		o.SetSkip(f.Skip)
+	}
+	if f.Limit > 0 {
+		o.SetLimit(f.Limit)
+	}
+	return o
+}
+
+// Command is the find command f sends to coll.
+func (f FindSpec) Command(coll string) bson.D {
+	filter := f.Filter
+	if filter == nil {
+		filter = bson.D{}
+	}
+	cmd := bson.D{{Key: "find", Value: coll}, {Key: "filter", Value: filter}}
+	for _, e := range []bson.E{{Key: "sort", Value: f.Sort}, {Key: "projection", Value: f.Projection},
+		{Key: "hint", Value: f.Hint}, {Key: "min", Value: f.Min}} {
+		if d := e.Value.(bson.D); len(d) > 0 {
+			cmd = append(cmd, e)
+		}
+	}
+	if f.Skip > 0 {
+		cmd = append(cmd, bson.E{Key: "skip", Value: f.Skip})
+	}
+	if f.Limit > 0 {
+		cmd = append(cmd, bson.E{Key: "limit", Value: f.Limit})
+	}
+	return cmd
+}
+
+// pageFind is the find that loads req's page. Keyset pages hint the _id
+// index and start after the previous page's last _id; other pages cap the
+// filter at the snapshot _id (outside live mode) and page with skip. ok is
+// false when the page lies past the query's limit, so nothing is fetched.
+func pageFind(req pageRequest, snapshot interface{}) (spec FindSpec, ok bool) {
+	if req.keyset {
+		spec = FindSpec{Filter: bson.D{}, Projection: req.projection,
+			Hint: bson.D{{Key: "_id", Value: 1}}, Limit: int64(req.pageSize)}
+		if req.start.Set {
+			spec.Min = bson.D{{Key: "_id", Value: req.start.ID}}
+			spec.Filter = bson.D{{Key: "_id", Value: bson.D{{Key: "$ne", Value: req.start.ID}}}}
+		} else if req.page > 0 {
+			spec.Skip = int64(req.page) * int64(req.pageSize)
+		}
+		return spec, true
+	}
+	filter := req.filter
+	if filter == nil {
+		filter = bson.D{}
+	}
+	if snapshot != nil && !req.live {
+		cond := bson.D{{Key: "_id", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$gt", Value: snapshot}}}}}}
+		if len(filter) == 0 {
+			filter = cond
+		} else {
+			filter = bson.D{{Key: "$and", Value: bson.A{filter, cond}}}
+		}
+	}
+	limit := int64(req.pageSize)
+	offset := int64(req.page) * int64(req.pageSize)
+	if req.limit > 0 {
+		if remaining := req.limit - offset; remaining < limit {
+			limit = remaining
+		}
+	}
+	spec = FindSpec{Filter: filter, Sort: req.sort, Projection: req.projection, Skip: req.skip + offset, Limit: limit}
+	return spec, limit > 0
+}
+
+// CurrentPageFind returns the find that loaded the browse list's current
+// page, so explain sees the same hint, keyset bounds and snapshot cap.
+func CurrentPageFind() (FindSpec, bool) {
+	s := state.S
+	req := currentPageRequest()
+	req.keyset = req.keyset && s.KeysetMode
+	return pageFind(req, s.SnapshotID)
+}
+
 func fetchPage(ctx context.Context, coll *mongo.Collection, req pageRequest) pageResult {
 	var res pageResult
 	filter := req.filter
@@ -329,18 +435,8 @@ func fetchPage(ctx context.Context, coll *mongo.Collection, req pageRequest) pag
 		filter = bson.D{}
 	}
 	if req.keyset {
-		opts := options.Find().SetHint(bson.D{{Key: "_id", Value: 1}}).SetLimit(int64(req.pageSize))
-		if len(req.projection) > 0 {
-			opts.SetProjection(req.projection)
-		}
-		f := bson.D{}
-		if req.start.Set {
-			opts.SetMin(bson.D{{Key: "_id", Value: req.start.ID}})
-			f = bson.D{{Key: "_id", Value: bson.D{{Key: "$ne", Value: req.start.ID}}}}
-		} else if req.page > 0 {
-			opts.SetSkip(int64(req.page) * int64(req.pageSize))
-		}
-		docs, err := findAll(ctx, coll, f, opts)
+		spec, _ := pageFind(req, nil)
+		docs, err := findAll(ctx, coll, spec.Filter, spec.options())
 		if err == nil {
 			res.docs = docs
 			res.keysetUsed = true
@@ -363,32 +459,10 @@ func fetchPage(ctx context.Context, coll *mongo.Collection, req pageRequest) pag
 				res.snapshot = snapshot
 			}
 		}
-		eff := filter
-		if snapshot != nil && !req.live {
-			cond := bson.D{{Key: "_id", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$gt", Value: snapshot}}}}}}
-			if len(filter) == 0 {
-				eff = cond
-			} else {
-				eff = bson.D{{Key: "$and", Value: bson.A{filter, cond}}}
-			}
-		}
-		res.effFilter = eff
-		limit := int64(req.pageSize)
-		offset := int64(req.page) * int64(req.pageSize)
-		if req.limit > 0 {
-			if remaining := req.limit - offset; remaining < limit {
-				limit = remaining
-			}
-		}
-		if limit > 0 {
-			opts := options.Find().SetSkip(req.skip + offset).SetLimit(limit)
-			if len(req.sort) > 0 {
-				opts.SetSort(req.sort)
-			}
-			if len(req.projection) > 0 {
-				opts.SetProjection(req.projection)
-			}
-			docs, err := findAll(ctx, coll, eff, opts)
+		spec, ok := pageFind(req, snapshot)
+		res.effFilter = spec.Filter
+		if ok {
+			docs, err := findAll(ctx, coll, spec.Filter, spec.options())
 			if err != nil {
 				res.err = err
 				return res

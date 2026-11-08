@@ -31,6 +31,14 @@ const (
 	Helper
 	Text
 	Error
+	// Report kinds style prose reports (such as explain analysis) that are
+	// shown in the document viewer.
+	Heading
+	Muted
+	Good
+	Warn
+	Bad
+	Accent
 )
 
 // Token is a run of printed text of a single Kind.

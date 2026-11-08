@@ -36,7 +36,7 @@ func truncate(s string, n int) string {
 func DeleteDocumentConfirm() {
 	s := state.S
 	switch s.View {
-	case "detail", "tree", "indexes", "stats":
+	case "detail", "tree", "indexes", "stats", "insights":
 		state.FlashStatus("Delete works from the document list; press Esc to go back")
 		return
 	}
@@ -119,7 +119,7 @@ func currentDoc() (bson.D, state.Namespace, bool) {
 			return nil, state.Namespace{}, false
 		}
 		return s.ExpandedDoc, s.ExpandedNS, s.ExpandedEditable
-	case "indexes", "stats":
+	case "indexes", "stats", "insights":
 		return nil, state.Namespace{}, false
 	}
 	if idx := s.Cursor; idx >= 0 && idx < len(s.CurrentDocs) {

@@ -42,6 +42,7 @@ func (m *Model) resize() {
 	m.json.SetSize(w, h)
 	m.indexes.SetSize(w, h)
 	m.stats.SetSize(w, h)
+	m.insights.SetSize(w, h)
 	m.palette.SetSize(m.width, m.height)
 	m.help.SetSize(m.width, m.height)
 	if m.confirm != nil {
@@ -149,6 +150,8 @@ func (m *Model) content() (title, info, body string) {
 		}
 	case "stats":
 		title, body = "Server Stats", m.stats.View()
+	case "insights":
+		title, body = s.InsightsDB+" › Insights", m.insights.View()
 	default:
 		info, body = documentInfo(), m.table.View()
 		if columns := m.table.ColumnInfo(); columns != "" {
@@ -177,6 +180,9 @@ func (m *Model) detailTitle(title string) string {
 			}
 		}
 		return title + " › " + id
+	}
+	if s.DetailBackPage == "insights" {
+		title = s.InsightsDB + " › Insights"
 	}
 	if s.DetailBackPage == "indexes" {
 		title = s.IndexesNS.DB + " › " + s.IndexesNS.Coll
@@ -277,6 +283,8 @@ func (m *Model) hints() []chrome.Hint {
 		hints = append(hints, chrome.Hint{Key: "enter", Desc: "details"}, chrome.Hint{Key: "X", Desc: "drop"}, chrome.Hint{Key: "esc", Desc: "back"})
 	case state.S.View == "stats":
 		hints = append(hints, chrome.Hint{Key: "↑↓", Desc: "scroll"}, chrome.Hint{Key: "r", Desc: "refresh"}, chrome.Hint{Key: ":", Desc: "commands"}, chrome.Hint{Key: "esc", Desc: "back"})
+	case state.S.View == "insights":
+		hints = append(hints, chrome.Hint{Key: "↑↓", Desc: "scroll"}, chrome.Hint{Key: "r", Desc: "refresh"}, chrome.Hint{Key: "E", Desc: "explain Qn"}, chrome.Hint{Key: "esc", Desc: "back"})
 	default:
 		hints = append(hints, chrome.Hint{Key: "enter", Desc: "open"}, chrome.Hint{Key: "space", Desc: "select"}, chrome.Hint{Key: "/", Desc: "query"}, chrome.Hint{Key: ":", Desc: "cmd"}, chrome.Hint{Key: "v", Desc: "table/json"})
 	}

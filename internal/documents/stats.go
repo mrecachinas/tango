@@ -170,8 +170,8 @@ func renderStats(d statsData) {
 	// Active operations
 	s.StatsOps = map[string]interface{}{}
 	type opRow struct {
-		opid, typ, ns, client, cmd string
-		secs                       float64
+		opid, typ, ns, client, plan, cmd string
+		secs                             float64
 	}
 	var rows []opRow
 	for _, raw := range d.ops {
@@ -187,8 +187,9 @@ func renderStats(d statsData) {
 		s.StatsOps[opid] = op["opid"]
 		ns, _ := op["ns"].(string)
 		cl, _ := op["client"].(string)
+		plan, _ := op["planSummary"].(string)
 		secs, _ := state.ToFloat64(op["secs_running"])
-		rows = append(rows, opRow{opid: opid, typ: typ, ns: ns, client: cl, cmd: compactCmd(op["command"], 2000), secs: secs})
+		rows = append(rows, opRow{opid: opid, typ: typ, ns: ns, client: cl, plan: plan, cmd: compactCmd(op["command"], 2000), secs: secs})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].secs > rows[j].secs })
 	operations := state.StatsSection{
@@ -196,7 +197,7 @@ func renderStats(d statsData) {
 		Columns: []state.StatsColumn{
 			{Name: "OPID", Width: 8, Right: true}, {Name: "TYPE", Width: 9},
 			{Name: "NAMESPACE", Width: 24}, {Name: "SECS", Width: 6, Right: true},
-			{Name: "CLIENT", Width: 21}, {Name: "COMMAND"},
+			{Name: "CLIENT", Width: 21}, {Name: "PLAN", Width: 16}, {Name: "COMMAND"},
 		},
 	}
 	switch {
@@ -210,7 +211,7 @@ func renderStats(d statsData) {
 				operations.Note += fmt.Sprintf(" · showing first 50 of %d", len(rows))
 				break
 			}
-			operations.Rows = append(operations.Rows, []string{r.opid, r.typ, r.ns, fmt.Sprintf("%.0f", r.secs), r.client, r.cmd})
+			operations.Rows = append(operations.Rows, []string{r.opid, r.typ, r.ns, fmt.Sprintf("%.0f", r.secs), r.client, r.plan, r.cmd})
 		}
 	}
 
